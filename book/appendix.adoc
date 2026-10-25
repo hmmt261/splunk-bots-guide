@@ -704,5 +704,5 @@
 
 === 本書について
 
-本書は Asciidoctor で書かれており，構成は https://tomomano.gitlab.io/intro-aws/[AWSによるクラウド入門] を参考にした．
+本書は Asciidoctor で書かれている．左サイドバーの目次などの体裁は https://tomomano.gitlab.io/intro-aws/[AWSによるクラウド入門] を参考にしたが，本文・コードはすべて独自に作成したものである．
 BOTS のデータセットとシナリオは Splunk 社によるものである．

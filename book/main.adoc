@@ -38,9 +38,6 @@ include::appendix.adoc[]
 // Additional styles
 ++++
 <style>
-  .imageblock > .title {
-    text-align: inherit;
-  }
   details > summary.title {
     font-weight: bold;
   }
