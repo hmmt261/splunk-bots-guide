@@ -1,0 +1,51 @@
+= Splunk BOTS v1〜v3 解き方ガイド
+BOTS Lab
+v1.0, 2026-10-25
+:toc: left
+:toclevels: 2
+:toc-title: 目次
+:sectnums:
+:sectnumlevels: 3
+:source-highlighter: rouge
+:rouge-style: github
+:icons: font
+:xrefstyle: short
+:figure-caption: 図
+:table-caption: 表
+:example-caption: 例
+:note-caption: Note
+:tip-caption: Tip
+:warning-caption: Warning
+:important-caption: Important
+:lang: ja
+:experimental:
+
+include::introduction.adoc[]
+include::basics.adoc[]
+include::botsv1-web.adoc[]
+include::botsv1-cerber.adoc[]
+include::botsv2-amber.adoc[]
+include::botsv2-brewertalk.adoc[]
+include::botsv2-mallory.adoc[]
+include::botsv2-taedonggang.adoc[]
+include::botsv2-store.adoc[]
+include::botsv3-aws.adoc[]
+include::botsv3-endpoint.adoc[]
+include::botsv3-extra.adoc[]
+include::closing.adoc[]
+include::appendix.adoc[]
+
+// Additional styles
+++++
+<style>
+  .imageblock > .title {
+    text-align: inherit;
+  }
+  details > summary.title {
+    font-weight: bold;
+  }
+  .answer code {
+    font-size: 1.05em;
+  }
+</style>
+++++

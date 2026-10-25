@@ -1,0 +1,500 @@
+[[chap_botsv1_web]]
+== BOTSv1 (1): Web サイト改ざん
+
+=== シナリオ
+
+Wayne Enterprises 社の Web サイト `imreallynotbatman.com` が改ざんされ，
+トップページが攻撃グループ「Poison Ivy」の画像に置き換えられた．
+SOC アナリストとして，攻撃者がどのようにサイトを調査し，侵入し，改ざんしたのかを明らかにする．
+
+この章では問題 101〜305 を扱う．
+主に使うデータは次のとおり．
+
+* `stream:http`：Web サーバーへの HTTP 通信（ヘッダ，フォームの送信内容まで入っている）
+* `suricata` / `fgt_utm`：IDS と UTM のログ
+* `XmlWinEventLog:Microsoft-Windows-Sysmon/Operational`：Web サーバー上のプロセス生成
+
+.攻撃の全体像（この章で明らかになること）
+[cols="1,4", options="header"]
+|===
+|時刻（UTC, 2016-08-10） |出来事
+
+|21:36 頃〜
+|`40.80.148.42` から Acunetix による脆弱性スキャン
+
+|21:45:21〜21:46:33
+|`23.22.63.114` から Joomla 管理画面へのパスワード総当たり（412 回）
+
+|21:48:05
+|`40.80.148.42` から，判明したパスワードで管理画面にログイン
+
+|21:52:47
+|管理画面から `3791.exe` と `agent.php` をアップロード
+
+|22:06・22:13
+|Web サーバーが攻撃者のサーバーから改ざん画像を取得
+|===
+
+[[q101]]
+=== 101: 脆弱性スキャナのブランド名
+
+[quote]
+____
+Find the brand name of the vulnerability scanner that attacked imreallynotbatman.com.
+____
+
+配点：5 点
+
+.方針
+対象サイトへの HTTP 通信を送信元ごとに集計し，リクエスト数が突出した送信元のヘッダを読む．
+脆弱性スキャナは，User-Agent や独自ヘッダ，攻撃文字列に製品名を残すことが多い．
+
+[source,spl]
+----
+index=botsv1 sourcetype=stream:http site=imreallynotbatman.com
+| stats count by src_ip http_user_agent
+| sort -count
+----
+
+`40.80.148.42` から 1 万 7 千件以上のリクエストがあり，User-Agent に `acunetix_wvs_security_test` という文字列を含むものが混ざっている．
+この送信元のリクエストヘッダ（`src_headers`）を見ると，製品名がはっきり書かれている．
+
+[source,spl]
+----
+index=botsv1 sourcetype=stream:http site=imreallynotbatman.com src_ip=40.80.148.42 acunetix
+| head 1
+| table src_headers
+----
+
+----
+Acunetix-Product: WVS/10.0 (Acunetix Web Vulnerability Scanner - Free Edition)
+----
+
+TIP: `index=botsv1 acunetix | stats count by sourcetype` のようにキーワードで検索すると，
+`stream:http` のほかに `iis`，`suricata`，`fgt_utm` でも同じ製品名が見つかる．
+複数のデータソースで裏が取れると確度が上がる．
+
+.答え
+[%collapsible.answer]
+====
+`Acunetix`
+====
+
+[[q102]]
+=== 102: 脆弱性スキャナの IP アドレス
+
+[quote]
+____
+Find the IP address of the vulnerability scanner that attacked imreallynotbatman.com.
+____
+
+配点：5 点
+
+.方針
+101 の集計結果で，Acunetix の痕跡がある送信元を答える．
+
+101 の 1 つ目の SPL で，Acunetix の User-Agent・ヘッダを持つリクエストはすべて `40.80.148.42` から来ている．
+
+WARNING: もう 1 つの外部アドレス `23.22.63.114`（User-Agent が `Python-urllib/2.7`）は，
+後で出てくるパスワード総当たりの送信元である．スキャナとは別物なので混同しないこと．
+
+.答え
+[%collapsible.answer]
+====
+`40.80.148.42`
+====
+
+[[q103]]
+=== 103: Web サーバーの IP アドレス
+
+[quote]
+____
+Find the IP address of the web server serving imreallynotbatman.com.
+____
+
+配点：5 点
+
+.方針
+対象サイト宛ての HTTP 通信の宛先（`dest_ip`）を見る．
+
+[source,spl]
+----
+index=botsv1 sourcetype=stream:http site=imreallynotbatman.com
+| stats count by dest_ip
+----
+
+宛先は 1 つだけで，社内アドレスの `192.168.250.70` である．
+外部の DNS では公開アドレスしか分からないが，社内で取得したパケットからは内部アドレスが分かる．
+
+.答え
+[%collapsible.answer]
+====
+`192.168.250.70`
+====
+
+[[q104]]
+=== 104: 改ざんに使われたファイル名
+
+[quote]
+____
+Find the name of the file used to deface the web server serving imreallynotbatman.com.
+____
+
+配点：10 点
+
+.方針
+改ざん画像は，侵害された Web サーバー自身が外部から取得したはずである．
+そこで Web サーバー `192.168.250.70` を **送信元** にして HTTP 通信を探す．
+
+[source,spl]
+----
+index=botsv1 sourcetype=stream:http src_ip=192.168.250.70
+| stats count by site uri dest_ip
+----
+
+通常，Web サーバーは要求を受ける側なので，自分から外へ出ていく HTTP 通信はほとんどない．
+Joomla の更新確認（`update.joomla.org`）を除くと，残るのは次の 1 種類だけである．
+
+[cols="2,2,1", options="header"]
+|===
+|site |uri |dest_ip
+|`prankglassinebracket.jumpingcrab.com:1337` |`/poisonivy-is-coming-for-you-batman.jpeg` |`23.22.63.114`
+|===
+
+.答え
+[%collapsible.answer]
+====
+`poisonivy-is-coming-for-you-batman.jpeg`
+====
+
+[[q105]]
+=== 105: ステージングサーバーの FQDN
+
+[quote]
+____
+Find the fully qualified domain name (FQDN) of the staging server that hosted the defacement file.
+____
+
+配点：10 点
+
+.方針
+104 で見つけた通信の `site` フィールドを読む．
+
+`site` は `prankglassinebracket.jumpingcrab.com:1337` である．
+`:1337` は接続先のポート番号なので，FQDN には含めない．
+
+TIP: Suricata のログ（`index=botsv1 sourcetype=suricata poisonivy | stats count by http.hostname dest_ip`）でも同じホスト名が確認できる．
+
+.答え
+[%collapsible.answer]
+====
+`prankglassinebracket.jumpingcrab.com`
+====
+
+[[q201]]
+=== 201: ステージングサーバーの IP アドレス
+
+[quote]
+____
+In Level 1 you found the staging server's FQDN. What is that staging server's IP address?
+____
+
+配点：10 点
+
+.方針
+104 の通信の `dest_ip` を読む．DNS の応答からも確認できる．
+
+[source,spl]
+----
+index=botsv1 sourcetype=stream:http site="prankglassinebracket.jumpingcrab.com:1337"
+| stats count by dest_ip
+----
+
+宛先は `23.22.63.114` である．このアドレスは，後の問題でパスワード総当たりの送信元としても登場する．
+
+.答え
+[%collapsible.answer]
+====
+`23.22.63.114`
+====
+
+[[q202]]
+=== 202: 同じ IP アドレスにある leetspeak のドメイン
+
+[quote]
+____
+Search the internet for other domains hosted on the staging server's IP address. What domain name uses leetspeak (for example 1337sp33k.com)?
+____
+
+配点：10 点
+
+.方針
+この問題は Splunk の中では解けない．問題文のとおり，インターネット上の脅威インテリジェンスで
+`23.22.63.114` を調べる（OSINT）．
+
+本書の執筆時に，`botsv1` の全データを `tstats` で検索して，leetspeak のドメインが含まれていないことを確認した．
+
+[source,spl]
+----
+| tstats count where index=botsv1 TERM(po1s0n1vy.com) by sourcetype
+----
+
+上の検索は 0 件になる．つまり，ログをどれだけ調べても答えは出てこない．
+
+外部の情報源で `23.22.63.114` の passive DNS（過去にそのアドレスを指していたドメイン名）を調べると，
+攻撃グループ名「Poison Ivy」を leetspeak で書いたドメインが見つかる（o→0，i→1）．
+BOTS v1 の公開 writeup では，ThreatCrowd でこの IP アドレスを調べ，関連するメールアドレス
+`lilian.rose@po1s0n1vy.com` からドメインを特定している．
+
+NOTE: 当時よく使われた ThreatCrowd は現在ほとんど機能していない．
+VirusTotal の「Relations」タブや，AlienVault OTX など passive DNS を持つサービスで調べるとよい．
+ただし 2016 年当時の記録が残っているかはサービス次第である．
+
+.答え
+[%collapsible.answer]
+====
+`po1s0n1vy.com`
+
+（p・o・**1**・s・**0**・n・**1**・v・y．2 文字目は英字の o，5 文字目は数字の 0）
+====
+
+[[q203]]
+=== 203: パスワード総当たりの送信元 IP アドレス
+
+[quote]
+____
+What IP address performed the brute force attack against imreallynotbatman.com?
+____
+
+配点：15 点
+
+.方針
+Joomla の管理画面（`/joomla/administrator/index.php`）への POST を送信元ごとに数える．
+
+[source,spl]
+----
+index=botsv1 sourcetype=stream:http dest_ip=192.168.250.70 http_method=POST uri="/joomla/administrator/index.php"
+| stats count by src_ip http_user_agent
+----
+
+[cols="1,3,1", options="header"]
+|===
+|src_ip |http_user_agent |count
+|`23.22.63.114` |`Python-urllib/2.7` |412
+|`40.80.148.42` |`Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; rv:11.0) like Gecko` |13
+|===
+
+`23.22.63.114` が Python のスクリプトで 412 回ログインを試みている．
+
+TIP: IIS のログでも同じことが分かる．
+`index=botsv1 sourcetype=iis cs_uri_stem="/joomla/administrator/index.php" | stats count by c_ip`
+
+.答え
+[%collapsible.answer]
+====
+`23.22.63.114`
+====
+
+[[q204]]
+=== 204: アップロードされた実行ファイル
+
+[quote]
+____
+What is the name of the executable file that the attacker uploaded to the web server?
+____
+
+配点：15 点
+
+.方針
+ファイルのアップロードは `multipart/form-data` の POST で行われる．
+Stream はマルチパートの各パートのファイル名を `part_filename{}` に記録している．
+
+[source,spl]
+----
+index=botsv1 sourcetype=stream:http dest_ip=192.168.250.70 http_method=POST "part_filename{}"=*
+| table _time part_filename{} content_disposition{}
+----
+
+21:52:47 の POST で `3791.exe` と `agent.php` の 2 つのファイルがアップロードされている．
+問題が問うのは実行ファイルなので `3791.exe` である．
+
+Suricata のファイル抽出ログでも確認できる．
+
+[source,spl]
+----
+index=botsv1 sourcetype=suricata fileinfo.filename=*.exe dest_ip=192.168.250.70
+| stats count by fileinfo.filename src_ip
+----
+
+WARNING: `shtml.exe` や `cmd.exe` もヒットするが，これらはスキャナが存在を確かめようとした URL であり，
+アップロードされたファイルではない．
+
+.答え
+[%collapsible.answer]
+====
+`3791.exe`
+====
+
+[[q301]]
+=== 301: 実行ファイルの MD5
+
+[quote]
+____
+What is the MD5 hash of the executable file that the attacker uploaded to the web server?
+____
+
+配点：10 点
+
+.方針
+アップロードされた `3791.exe` は Web サーバー上で実行されている．
+Sysmon のプロセス生成（EventCode 1）の `Hashes` フィールドに，実行ファイルのハッシュが記録される．
+
+[source,spl]
+----
+index=botsv1 sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1 Image="*3791.exe"
+| stats count by Image Hashes
+----
+
+`Hashes` は `SHA1=...,MD5=...,SHA256=...,IMPHASH=...` という形式なので，`MD5=` の後ろの 32 文字を答える．
+Sysmon アドオンが入っている環境では，`MD5` フィールドとしても取り出せる．
+
+WARNING: `3791.exe` というキーワードだけで検索すると，`3791.exe` が起動した子プロセスなど
+別のファイルのハッシュも混ざる．`Image` で実行ファイル自身に絞ること．
+
+.答え
+[%collapsible.answer]
+====
+`AAE3F5A29935E6ABCC2C2754D12A9AF0`
+====
+
+[[q302]]
+=== 302: 総当たりで最初に試されたパスワード
+
+[quote]
+____
+What was the first password attempted in the brute force attack?
+____
+
+配点：10 点
+
+.方針
+203 の総当たりの POST から，フォームデータ（`form_data`）の `passwd` を取り出し，時刻順に並べる．
+
+[source,spl]
+----
+index=botsv1 sourcetype=stream:http dest_ip=192.168.250.70 http_method=POST uri="/joomla/administrator/index.php" src_ip=23.22.63.114
+| rex field=form_data "passwd=(?<passwd>[^&]+)"
+| sort 0 _time
+| table _time src_ip passwd
+----
+
+最初の試行は 21:45:21.226 の `12345678` である．
+
+WARNING: 検索結果は新しい順に並ぶので，`sort` せずに先頭を見ると最後の試行を拾ってしまう．
+
+.答え
+[%collapsible.answer]
+====
+`12345678`
+====
+
+[[q303]]
+=== 303: 最終的に正しかったパスワード
+
+[quote]
+____
+What password was eventually found to be correct in the brute force attack?
+____
+
+配点：10 点
+
+.方針
+総当たりで正解したパスワードは，その後に攻撃者が本当のログインで使うはずである．
+つまり「総当たりの送信元」と「別の送信元」の両方から送られたパスワードを探せばよい．
+
+[source,spl]
+----
+index=botsv1 sourcetype=stream:http dest_ip=192.168.250.70 http_method=POST uri="/joomla/administrator/index.php" form_data=*passwd*
+| rex field=form_data "passwd=(?<passwd>[^&]+)"
+| stats count dc(src_ip) as srcs values(src_ip) as src by passwd
+| where count>1
+----
+
+2 回以上使われたパスワードは `batman` だけで，送信元は `23.22.63.114`（総当たり）と `40.80.148.42`（ブラウザ）の 2 つである．
+
+.答え
+[%collapsible.answer]
+====
+`batman`
+====
+
+[[q304]]
+=== 304: パスワード判明からログインまでの秒数
+
+[quote]
+____
+How many seconds elapsed between the correct password being identified and the compromised login? Round to 2 decimal places.
+____
+
+配点：10 点
+
+.方針
+`passwd=batman` を含む 2 つのイベントの時刻差を求める．
+
+[source,spl]
+----
+index=botsv1 sourcetype=stream:http dest_ip=192.168.250.70 http_method=POST form_data="*passwd=batman*"
+| sort 0 _time
+| table _time src_ip http_user_agent
+| eventstats range(_time) as diff
+----
+
+[cols="2,1,2", options="header"]
+|===
+|_time |src_ip |http_user_agent
+|21:46:33.689 |`23.22.63.114` |`Python-urllib/2.7`（総当たりで正解）
+|21:48:05.858 |`40.80.148.42` |ブラウザ（Trident）でログイン
+|===
+
+差は 92.169084 秒なので，小数第 2 位に丸めて 92.17 となる．
+
+WARNING: Stream のイベントには `_time` のほかに，リクエスト開始時刻の `timestamp` と終了時刻の `endtime` がある．
+ある writeup はこれらの組み合わせや，ログイン直後の管理画面表示までの時間を計算して不正解を重ねた．
+この問題は 2 つのイベントの `_time` の差が期待されている．
+
+.答え
+[%collapsible.answer]
+====
+`92.17`
+====
+
+[[q305]]
+=== 305: 試されたユニークなパスワードの数
+
+[quote]
+____
+How many unique passwords were attempted in the brute force attack?
+____
+
+配点：10 点
+
+.方針
+総当たりの POST から `passwd` を取り出し，種類数（`dc()`）を数える．
+
+[source,spl]
+----
+index=botsv1 sourcetype=stream:http dest_ip=192.168.250.70 http_method=POST uri="/joomla/administrator/index.php" src_ip=23.22.63.114
+| rex field=form_data "passwd=(?<passwd>[^&]+)"
+| stats count dc(passwd)
+----
+
+試行回数・種類数ともに 412 である．
+
+NOTE: `src_ip` で絞らずに全送信元を数えると，`batman` が 2 回出てくるため試行回数は 413 になるが，種類数は 412 のままである．
+「unique」と問われているので，回数ではなく種類数を答える．
+
+.答え
+[%collapsible.answer]
+====
+`412`
+====

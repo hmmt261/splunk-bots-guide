@@ -1,0 +1,220 @@
+[[chap_botsv3_extra]]
+== BOTSv3 (3): 追加の問題
+
+=== 概要
+
+この章では問題 2400〜2403 を扱う．
+これまでの章の調査結果を使い，ログの外の知識（AMI の素性，CVE 番号）と組み合わせたり，
+Splunk のコマンドだけで統計量を計算したりする問題である．
+
+[[q2400]]
+=== 2400: 最初に起動を試みた Ubuntu イメージのコードネーム
+
+[quote]
+____
+The adversary attempts to launch an Ubuntu cloud image as the compromised IAM user. What is the codename for that operating system version in the first attempt? Two words.
+____
+
+配点：15 点
+
+.方針
+流出したキーの持ち主 `web_admin`（2115）による EC2 インスタンスの起動（`RunInstances`）を時刻順に並べ，最初に指定された AMI（マシンイメージ）の ID を調べる．
+
+[source,spl]
+----
+index=botsv3 sourcetype=aws:cloudtrail eventName=RunInstances userIdentity.userName=web_admin
+| spath path=requestParameters.instancesSet.items{}.imageId output=ami
+| spath path=requestParameters.instanceType output=type
+| sort 0 _time
+| table _time awsRegion ami type errorCode
+----
+
+[cols="2,1,2,1,2", options="header"]
+|===
+|_time |awsRegion |ami |type |errorCode
+|09:16:22 |us-east-1 |`ami-41e0b93b` |x1.32xlarge |Client.InstanceLimitExceeded
+|09:16:23 |us-east-1 |`ami-67973709` |x1.32xlarge |Client.InstanceLimitExceeded
+|09:16:24 |us-east-1 |`ami-1157157d` |x1.32xlarge |Client.InstanceLimitExceeded
+5+|（以下，09:28 頃まで続く）
+|===
+
+攻撃者は大型のインスタンス（x1.32xlarge など）を，AMI とインスタンスタイプを変えながら 1 秒おきに起動しようとしている．
+いずれも上限超過で失敗している（マイニング用のインスタンスを立てようとしたと考えられる）．
+最初の試行の AMI は `us-east-1` の `ami-41e0b93b` である．
+
+AMI がどの OS かはログには書かれていないので，外部の情報で調べる．
+
+* Ubuntu の公式 AMI の一覧（https://cloud-images.ubuntu.com/locator/ec2/[Ubuntu Cloud Image Finder]）で AMI ID を検索する
+* AWS CLI で `aws ec2 describe-images --region us-east-1 --image-ids ami-41e0b93b` を実行する（古い AMI は登録が抹消されていることがある）
+
+`ami-41e0b93b` は Ubuntu 16.04 LTS のイメージで，そのコードネームは「Xenial Xerus」である．
+
+WARNING: 最初の試行以外の AMI（`ami-79aeae19` や `ami-af79ebc0` など）を調べて答えた writeup もあった．
+`sort 0 _time` で時刻順に並べ，最初の 1 件を使うこと．
+
+TIP: `hoth` など Frothly の Linux サーバーも Ubuntu 16.04 である（osquery の `build_distro=xenial`）．
+
+.答え
+[%collapsible.answer]
+====
+`Xenial Xerus`
+
+（`Xenial` だけでも正解として受け付けられる）
+====
+
+[[q2401]]
+=== 2401: EventCode 4688 の件数の IQR の上側フェンス
+
+[quote]
+____
+Using Splunk commands only, what is the upper fence (UF) value of the interquartile range (IQR) of the count of event code 4688 by Windows hosts over the entire day? Use a 1.5 multiplier.
+____
+
+配点：15 点
+
+.方針
+Windows のプロセス生成イベント（EventCode 4688）をホストごとに数え，その件数の分布から四分位数を求める．
+
+* IQR（四分位範囲）＝ 第 3 四分位数（Q3） − 第 1 四分位数（Q1）
+* 上側フェンス（UF）＝ Q3 ＋ 1.5 × IQR
+
+UF を超える値は外れ値とみなされる．
+
+[source,spl]
+----
+index=botsv3 sourcetype=WinEventLog:Security EventCode=4688
+| stats count by host
+| eventstats perc25(count) as q1 perc75(count) as q3
+| eval iqr=q3-q1, uf=q3+1.5*iqr
+| table host count q1 q3 iqr uf
+----
+
+[cols="1,1", options="header"]
+|===
+|host |count
+|`ABUNGST-L` |586
+|`FYODOR-L` |637
+|`BGIST-L` |654
+|`JWORTOS-L` |774
+|`BTUN-L` |866
+|`MKRAEUS-L` |887
+|`PCERF-L` |1087
+|`BSTOLL-L` |1936
+|===
+
+Q1 = 649.75，Q3 = 937，IQR = 287.25 で，UF = 937 + 1.5 × 287.25 = 1367.875 となる．
+整数に丸めて 1368 である．
+`BSTOLL-L`（1936 件）だけが UF を超えており，プロセス生成が異常に多い端末だと分かる．
+
+NOTE: Splunk の `perc25`/`perc75` は値の間を補間した近似値を返す．
+補間しない `exactperc25`/`exactperc75` を使うと Q1 = 654，Q3 = 1087 となり，UF は 1737 になる．
+演習環境ではどちらも正解として受け付けられる．
+
+.答え
+[%collapsible.answer]
+====
+`1368`
+
+（`exactperc` で計算した `1737` も正解として受け付けられる）
+====
+
+[[q2402]]
+=== 2402: hoth で権限昇格に使われた脆弱性の CVE
+
+[quote]
+____
+What is the CVE of the vulnerability that escalated permissions on Linux host hoth?
+____
+
+配点：15 点
+
+.方針
+2310 で見たとおり，攻撃者は `/tmp/colonel` に Base64 の文字列を書き込み，デコードして `colonel.c` を作り，コンパイルしている．
+このソースコードの冒頭を読み，どの脆弱性を使うプログラムかを特定する．
+
+Struts 経由で送られた `echo` コマンドから，Base64 の部分を取り出す．
+
+[source,spl]
+----
+index=botsv3 sourcetype=stream:http uri_path=/frothlyinventory/integration/saveGangster.action form_data="*/tmp/colonel*" form_data="*echo*"
+| rex field=form_data "#cmd=.echo (?<b64>[A-Za-z0-9+/=]+)"
+| table _time b64
+----
+
+取り出した文字列を Base64 デコードすると，冒頭に次のコメントがある．
+
+----
+/*
+ * Ubuntu 16.04.4 kernel priv esc
+ *
+ * all credits to @bleidl
+ * - vnik
+ */
+
+// Tested on:
+// 4.4.0-116-generic #140-Ubuntu SMP Mon Feb 12 21:23:04 UTC 2018 x86_64
+----
+
+Ubuntu 16.04.4（カーネル 4.4.0-116）向けのカーネル権限昇格プログラムである．
+このコメントで公開エクスプロイトのデータベースなどを検索すると，Linux カーネルの eBPF の検証器の不備
+（符号拡張の誤りによる任意のメモリ読み書き）を突く既知のエクスプロイトであり，CVE-2017-16995 に対応することが分かる．
+
+osquery のプロセス記録を見ると，Tomcat の権限（UID 111）で `gcc colonel.c -o colonelnew` によりコンパイルし（11:15），
+`./colonelnew` を実行した（11:17）後に，root（UID 0）で `useradd` が成功している（11:24，2303）．
+このことからも権限昇格が成功したと判断できる．
+
+[source,spl]
+----
+index=botsv3 host=hoth sourcetype=osquery:results colonel*
+| spath path=columns.cmdline output=cmd
+| spath path=columns.uid output=uid
+| search cmd="*colonel*" NOT cmd="*/usr/lib/gcc*" NOT cmd="*/usr/bin/ld*"
+| sort 0 _time
+| table _time uid cmd
+----
+
+IMPORTANT: 取り出したソースコードはコンパイル・実行しないこと．文字列として読むだけにする．
+
+.答え
+[%collapsible.answer]
+====
+`CVE-2017-16995`
+====
+
+[[q2403]]
+=== 2403: hoth でコマンド実行に使われた脆弱性の CVE
+
+[quote]
+____
+What is the CVE of the vulnerability that was exploited to run commands on Linux host hoth?
+____
+
+配点：15 点
+
+.方針
+`hoth` で最初の偵察コマンド（`whoami`）が実行される直前の HTTP リクエストを調べ，攻撃された Web アプリと入力箇所を特定する．
+
+[source,spl]
+----
+index=botsv3 sourcetype=stream:http uri_path=/frothlyinventory/integration/saveGangster.action
+| rex field=form_data "#cmd='(?<cmd>[^']{0,100})"
+| sort 0 _time
+| table _time src_ip http_method cmd
+----
+
+11:05:43 から，`/frothlyinventory/integration/saveGangster.action` への POST の `name` パラメーターに
+OGNL 式（`${(#szgx='multipart/form-data').(#dm=@ognl.OgnlContext@DEFAULT_MEMBER_ACCESS)...(#cmd='whoami')...}`）が入っており，
+`whoami`，`id`，`cat /etc/passwd` などが順に実行されている．
+
+`integration/saveGangster.action` は Apache Struts 2 のサンプルアプリ（Struts Showcase）にある，
+Struts 1 プラグインの機能例である．
+このアクションで入力値が OGNL 式として評価されてしまう脆弱性は S2-048 として公表されており，CVE-2017-9791 が割り当てられている．
+
+WARNING: 「Struts の RCE」として有名な CVE-2017-5638（S2-045，Content-Type ヘッダへの注入）とは別物である．
+注入箇所（フォームの `name` パラメーター）とアクション名（`saveGangster.action`）を根拠に特定すること．
+
+.答え
+[%collapsible.answer]
+====
+`CVE-2017-9791`
+====

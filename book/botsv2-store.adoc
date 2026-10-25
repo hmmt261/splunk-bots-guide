@@ -1,0 +1,368 @@
+[[chap_botsv2_store]]
+== BOTSv2 (5): EC サイトの不正利用
+
+=== シナリオ
+
+Frothly のオンラインストア `store.froth.ly`（Magento 2）で，不審なアカウント作成やクーポンの乱用が起きている．
+HTTP の通信記録（クリックストリーム）を分析し，不正利用者の手口を明らかにする．
+
+この章では問題 1501〜1509 を扱う．
+データは `stream:http`（`site=store.froth.ly`）だけを使う．
+
+.Magento のリクエストと用途
+[cols="2,3", options="header"]
+|===
+|uri_path |用途
+
+|`/magento2/customer/account/createpost/`
+|アカウント作成
+
+|`/magento2/customer/account/loginPost/`
+|ログイン（`form_data` に `login[username]` と `login[password]`）
+
+|`/magento2/customer/account/editPost/`
+|プロフィールの編集
+
+|`/magento2/rest/default/V1/carts/mine/coupons/<コード>`
+|クーポンの適用（`PUT`．成功は 200，無効なコードは 404）
+
+|`.../shipping-information`
+|配送先の登録（`src_content` の JSON に `shipping_address`．応答に `grand_total`）
+
+|`.../payment-information`
+|支払い（`src_content` の JSON に `billingAddress`）
+|===
+
+TIP: Magento は Cookie の `form_key` で一連の操作を結び付けている．
+`PHPSESSID` はログインなどで変わることがあるが，`form_key` は同じクリックストリームの間変わらない．
+この章では `| rex field=cookie "form_key=(?<fk>[^;]+)"` で取り出した `fk` を「セッション」として扱う．
+
+[[q1501]]
+=== 1501: dberry398@mail.com の最初のセッション識別子
+
+[quote]
+____
+Individual clicks by a user are associated using a session identifier. What session identifier is assigned to dberry398@mail.com when visiting the Frothly store for the very first time? Provide the value of the field.
+____
+
+配点：10 点
+
+.方針
+`dberry398` を含むリクエストを時刻順に並べ，Cookie の中の識別子を比べる．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http dberry398
+| sort 0 _time
+| rex field=cookie "form_key=(?<form_key>[^;]+)"
+| rex field=cookie "PHPSESSID=(?<phpsessid>[^;]+)"
+| table _time uri_path form_key phpsessid
+----
+
+[cols="2,3,2,3", options="header"]
+|===
+|_time |uri_path |form_key |phpsessid
+|07:03:55.178 |`/magento2/customer/account/createpost/` |`lwh9Ql7oUbnJUqxR` |`r51ctj1efg8bo7lacaq399nci5`
+|07:03:55.364 | |`lwh9Ql7oUbnJUqxR` |`o6fc5a2rdoufmb8en8bqvfbav2`
+|07:06:36.890 | |`lwh9Ql7oUbnJUqxR` |`mlhg4l49hi8hn93b2abtr75j42`
+|===
+
+`PHPSESSID` はリクエストごとに変わっているのに対し，`form_key` は一貫している．
+個々のクリックを結び付けているのは `form_key` である．
+
+WARNING: 最初の `PHPSESSID`（`r51ctj1efg8bo7lacaq399nci5`）は不正解になる．
+
+NOTE: 公開されている元の BOTS の解答では `1wh9Q17o...` と書かれていることがあるが，これは l（エル）を 1・7 と誤記したものである．
+ログに記録された値をそのまま答えること．
+
+.答え
+[%collapsible.answer]
+====
+`lwh9Ql7oUbnJUqxR`
+====
+
+[[q1502]]
+=== 1502: プロフィールを編集してから 1,000 ドル超の注文をしたユーザー
+
+[quote]
+____
+Which user, identified by email address, edited their profile before placing an order over 1000 dollars in the same clickstream?
+____
+
+配点：15 点
+
+.方針
+プロフィール編集（`editPost`），ログイン（`loginPost`），配送先登録（応答に合計金額 `grand_total`）を `form_key` でまとめる．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http site=store.froth.ly (uri_path="*editPost*" OR uri_path="*loginPost*" OR uri_path="*shipping-information")
+| rex field=cookie "form_key=(?<fk>[^;]+)"
+| rex field=form_data "login(%5B|\[)username(%5D|\])=(?<user>[^&]+)"
+| rex field=dest_content "\"grand_total\":(?<total>[\d.]+)"
+| eval user=urldecode(user), edited=if(like(uri_path, "%editPost%"), 1, 0)
+| stats max(edited) as edited values(user) as user max(total) as total by fk
+| where edited=1
+----
+
+[cols="2,1,2,1", options="header"]
+|===
+|fk |edited |user |total
+|`ZDd2VGcWWKcKM95o` |1 |`bkildcare@yandex.com` |1552
+|===
+
+プロフィールを編集したクリックストリームは 1 つだけで，ログインしたユーザーは `bkildcare@yandex.com`，注文の合計は 1,552 ドルである．
+
+WARNING: このユーザーはプロフィール編集でメールアドレスを `bkildcare@yahoo.com` に変えている．
+編集後のアドレスは不正解になる．クリックストリームを始めたログイン時のアドレスを答える．
+
+.答え
+[%collapsible.answer]
+====
+`bkildcare@yandex.com`
+====
+
+[[q1503]]
+=== 1503: 請求先と異なる配送先として最も多く使われた住所
+
+[quote]
+____
+What street address was used most often as the shipping address across multiple accounts, when the billing address does not match the shipping address?
+____
+
+配点：15 点
+
+.方針
+配送先は `shipping-information` の `addressInformation.shipping_address`，請求先は `payment-information` の `billingAddress` に入っている．
+`form_key` ごとに両者を集め，異なる場合の配送先を数える．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http site=store.froth.ly http_method=POST (uri_path="*shipping-information" OR uri_path="*payment-information")
+| rex field=cookie "form_key=(?<fk>[^;]+)"
+| spath input=src_content path=addressInformation.shipping_address.street{} output=ship
+| spath input=src_content path=billingAddress.street{} output=bill
+| stats values(ship) as ship values(bill) as bill by fk
+| where isnotnull(ship) AND isnotnull(bill)
+| mvexpand ship
+| where ship!=bill
+| stats dc(fk) as sessions by ship
+| sort -sessions
+----
+
+`200 Franklin St` が 5 つのセッションで最も多い．
+
+WARNING: `shipping-information` の JSON にも `billing_address` があるが，この時点では配送先と同じ値が入っている．
+同じリクエストの中で比べると差が見つからない．請求先は支払い（`payment-information`）のリクエストから取ること．
+
+.答え
+[%collapsible.answer]
+====
+`200 Franklin St`
+====
+
+[[q1504]]
+=== 1504: 機械生成のユーザー名で使われたメールドメイン
+
+[quote]
+____
+What is the domain name used in email addresses by someone creating multiple accounts with machine-generated usernames?
+____
+
+配点：15 点
+
+.方針
+ログインに使われたユーザー名（メールアドレス）をドメインごとにまとめ，名前のパターンを見る．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http site=store.froth.ly uri_path="*loginPost*"
+| rex field=form_data "login(%5B|\[)username(%5D|\])=(?<user>[^&]+)"
+| eval user=urldecode(user)
+| rex field=user "^(?<local>[^@]+)@(?<domain>.+)$"
+| stats dc(user) as users values(local) as sample by domain
+| sort -users
+| eval sample=mvjoin(mvindex(sample, 0, 5), " ")
+----
+
+[cols="1,1,4", options="header"]
+|===
+|domain |users |sample
+|`elude.in` |52 |`A.Worthy AA.Worthy AB.Worthy AC.Worthy AD.Worthy AE.Worthy`
+|`gmail.com` |29 |`SamIAm66 TheAbaft TheBest ...`
+|===
+
+`elude.in` のアカウントは `A.Worthy`，`AA.Worthy`，`AB.Worthy`…… と機械的に連番で作られている．
+
+.答え
+[%collapsible.answer]
+====
+`elude.in`
+====
+
+[[q1505]]
+=== 1505: 最も多くの IP・User-Agent の組み合わせからログインされたユーザー
+
+[quote]
+____
+Which user ID experienced the most logins to their account from different IP address and user agent combinations? Provide the email address.
+____
+
+配点：10 点
+
+.方針
+ログインごとに「送信元 IP と User-Agent の組」を作り，ユーザーごとに種類数を数える．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http site=store.froth.ly uri_path="*loginPost*"
+| rex field=form_data "login(%5B|\[)username(%5D|\])=(?<user>[^&]+)"
+| eval user=urldecode(user)
+| search user=*@*
+| eval combo=src_ip."|".http_user_agent
+| stats dc(combo) as combos by user
+| sort -combos
+----
+
+`Tom2014@msn.com` が 5 通りで最も多い．
+
+NOTE: メールアドレスでないユーザー名には，さらに多い組み合わせを持つものがある．
+問題は「メールアドレスで答える」としているので，`search user=*@*` で絞っている．
+
+.答え
+[%collapsible.answer]
+====
+`Tom2014@msn.com`
+====
+
+[[q1506]]
+=== 1506: 成功したクーポンで最も多いもの
+
+[quote]
+____
+What is the most popular coupon code being used successfully on the site?
+____
+
+配点：20 点
+
+.方針
+クーポン適用のリクエストから，HTTP ステータスが 200（成功）のものだけを数える．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http site=store.froth.ly uri_path="*/coupons/*" status=200
+| rex field=uri_path "coupons/(?<code>[^/]+)$"
+| stats count by code
+----
+
+成功したのは `WINTER2017`（3 回）だけである．
+
+WARNING: ステータスで絞らずに数えると，大量に試された無効なコード（404）が上位に来る．
+
+.答え
+[%collapsible.answer]
+====
+`WINTER2017`
+====
+
+[[q1507]]
+=== 1507: ログインで最も多く見られるパスワード
+
+[quote]
+____
+Which password is being seen most often across users logging into the store?
+____
+
+配点：10 点
+
+.方針
+「across users（ユーザーをまたいで）」とあるので，そのパスワードを使った **ユーザーの数** で数える．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http site=store.froth.ly uri_path="*loginPost*"
+| rex field=form_data "login(%5B|\[)username(%5D|\])=(?<user>[^&]+)"
+| rex field=form_data "login(%5B|\[)password(%5D|\])=(?<pw>[^&]+)"
+| eval user=urldecode(user), pw=urldecode(pw)
+| stats dc(user) as users count by pw
+| sort -users
+----
+
+`HardwareBasedEasterEggs2017` が 19 人のユーザーで使われている．
+複数のアカウントで同じパスワードが使われているのは，流出したパスワードの使い回しや，一人による大量アカウント作成を示唆する．
+
+WARNING: ログインの回数で数えると，同じユーザーが何度もログインしたパスワード（`2600`）が最多になり，不正解である．
+
+.答え
+[%collapsible.answer]
+====
+`HardwareBasedEasterEggs2017`
+====
+
+[[q1508]]
+=== 1508: 8 月 19 日にチェックアウトの直前に最も多く見られたページ
+
+[quote]
+____
+Using Splunk Stream HTTP data (sourcetype=stream:http), which HTML page was most often the referrer of requests to the store's checkout URLs (/magento2/checkout/...) on August 19th, 2017 (PDT)? Provide the full URL.
+____
+
+配点：15 点
+
+.方針
+チェックアウトの URL へのリクエストの `http_referrer`（直前に見ていたページ）を，PDT の 8 月 19 日に限って集計する．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http site=store.froth.ly uri_path="/magento2/checkout/*"
+| eval pdt_date=strftime(_time - 7*3600, "%F")
+| search pdt_date=2017-08-19
+| stats count by http_referrer
+| sort -count
+----
+
+最も多いのは `http://store.froth.ly/magento2/mens-frothly-tee.html`（メンズ T シャツの商品ページ）である．
+
+WARNING: PDT の 8 月 19 日は UTC では 2017-08-19 07:00〜2017-08-20 07:00 である．
+UTC の日付で区切ると件数が変わる．
+上の SPL は Splunk の表示タイムゾーンが UTC であることを前提にしている．
+時間範囲で指定する場合は `_time>=1503126000 AND _time<1503212400` でもよい．
+
+NOTE: 抽出方法によって件数は変わる（`spath` で取り出すと 10 件，上の SPL では 5 件）が，順位は変わらない．
+
+.答え
+[%collapsible.answer]
+====
+`http://store.froth.ly/magento2/mens-frothly-tee.html`
+====
+
+[[q1509]]
+=== 1509: 無効なクーポンを試し続けた利用者の User-Agent
+
+[quote]
+____
+Which HTTP user agent is associated with a fraudster who appears to be gaming the site by unsuccessfully testing multiple coupon codes? Provide the exact string.
+____
+
+配点：20 点
+
+.方針
+クーポン適用が失敗した（404）リクエストを User-Agent ごとに数える．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http site=store.froth.ly uri_path="*/coupons/*" status=404
+| stats count dc(uri_path) as codes by http_user_agent
+| sort -count
+----
+
+1 つの User-Agent だけが 99 種類のコードを試している．
+OS のバージョンが `Windows NT 6.333` という実在しない値で，偽装した User-Agent と分かる．
+
+WARNING: 空白や記号を含めて完全に一致させる必要がある．画面からコピー＆ペーストすること．
+
+.答え
+[%collapsible.answer]
+====
+`Mozilla/5.0 (Windows NT 6.333; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36`
+====

@@ -1,0 +1,624 @@
+[[chap_botsv3_aws]]
+== BOTSv3 (1): AWS 環境とコインマイニング
+
+=== シナリオ
+
+BOTSv3 も舞台は Frothly である．2018 年 8 月 20 日，Frothly のクラウド環境と社内端末で複数の問題が起きた．
+
+* IT 担当の Bud Stoll（`bstoll`）が，誤って S3 バケットを一般公開してしまう
+* GitHub に AWS のアクセスキーが流出し，第三者がそのキーで AWS を操作しようとする
+* 社内端末のブラウザで，Web サイトに埋め込まれたコインマイナー（Coinhive）が動く
+
+この章では問題 2100〜2119 を扱う．
+主に使うデータは次のとおり．
+
+* `aws:cloudtrail`：AWS API の呼び出し記録
+* `aws:s3:accesslogs`：S3 バケットへのアクセス記録
+* `hardware` / `winhostmon`：サーバー・端末の構成情報
+* `PerfmonMk:Process`：Windows のプロセスごとの CPU 使用率
+* `symantec:ep:*`：Symantec Endpoint Protection
+* `stream:smtp` / `stream:dns`：メールと DNS
+
+.CloudTrail のよく使うフィールド
+[cols="2,3", options="header"]
+|===
+|フィールド |内容
+
+|`eventName` / `eventSource`
+|呼び出された API と，そのサービス（`s3.amazonaws.com`，`iam.amazonaws.com` など）
+
+|`userIdentity.userName` / `userIdentity.accessKeyId` / `userIdentity.type`
+|呼び出した IAM ユーザー，使われたアクセスキー，主体の種類
+
+|`requestParameters.*` / `responseElements.*`
+|API の引数と応答
+
+|`errorCode` / `errorMessage`
+|失敗したときのエラー
+
+|`userAgent`
+|呼び出したクライアント（AWS CLI，SDK，コンソールなど）
+
+|`eventID`
+|イベントを一意に識別する ID
+|===
+
+[[q2100]]
+=== 2100: AWS にアクセスした IAM ユーザー
+
+[quote]
+____
+List the IAM users that accessed an AWS service (successfully or unsuccessfully) in Frothly's AWS environment. Comma separated without spaces, in alphabetical order.
+____
+
+配点：20 点
+
+.方針
+CloudTrail で，主体の種類が IAM ユーザー（`userIdentity.type=IAMUser`）のイベントを，ユーザー名ごとに数える．
+
+[source,spl]
+----
+index=botsv3 sourcetype=aws:cloudtrail userIdentity.type=IAMUser
+| stats count by userIdentity.userName
+----
+
+`bstoll`，`btun`，`splunk_access`，`web_admin` の 4 ユーザーである．
+成功・失敗を問わないので，`errorCode` では絞らない．
+
+.答え
+[%collapsible.answer]
+====
+`bstoll,btun,splunk_access,web_admin`
+====
+
+[[q2101]]
+=== 2101: MFA なしの API 操作を検知するフィールド
+
+[quote]
+____
+What field would you use to alert that AWS API activity has occurred without MFA?
+____
+
+配点：10 点
+
+.方針
+CloudTrail のイベントには，そのセッションが MFA（多要素認証）で認証されたかを示す属性がある．
+
+[source,spl]
+----
+index=botsv3 sourcetype=aws:cloudtrail
+| stats count by userIdentity.sessionContext.attributes.mfaAuthenticated
+----
+
+`userIdentity.sessionContext.attributes.mfaAuthenticated` の値が `false` のイベントが，MFA なしの API 操作である．
+問題はフィールド名を問うているので，ドット区切りの完全なパスを答える．
+
+WARNING: コンソールへのログイン（`ConsoleLogin`）には `additionalEventData.MFAUsed` というフィールドもあるが，
+これはログイン時だけのもので，API 操作全般には使えない．
+
+.答え
+[%collapsible.answer]
+====
+`userIdentity.sessionContext.attributes.mfaAuthenticated`
+====
+
+[[q2102]]
+=== 2102: Web サーバーのプロセッサ番号
+
+[quote]
+____
+What is the processor number used on the web servers?
+____
+
+配点：10 点
+
+.方針
+Web サーバーを特定してから，構成情報（`hardware`）の CPU の型番を読む．
+
+Web サーバーのアクセスログ（`access_combined`）を出しているのは `gacrux.*` という名前のホスト群である．
+
+[source,spl]
+----
+index=botsv3 sourcetype=access_combined
+| stats count by host
+----
+
+[source,spl]
+----
+index=botsv3 sourcetype=hardware
+| table host _raw
+----
+
+----
+CPU_TYPE              Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz
+----
+
+Intel のプロセッサ番号は「E5-2676」の部分である（`v3` は世代を表す）．
+
+.答え
+[%collapsible.answer]
+====
+`E5-2676`
+====
+
+[[q2104]]
+=== 2104: S3 バケットを公開した API の eventID
+
+[quote]
+____
+Bud accidentally makes an S3 bucket publicly accessible. What is the event ID of the API call that enabled public access?
+____
+
+配点：10 点
+
+.方針
+S3 バケットのアクセス権（ACL）を変える API は `PutBucketAcl` である．
+ACL の付与先（Grantee）に「全員（`AllUsers`）」が含まれるものを探す．
+
+[source,spl]
+----
+index=botsv3 sourcetype=aws:cloudtrail eventName=PutBucketAcl
+| spath path=requestParameters.AccessControlPolicy.AccessControlList.Grant{}.Grantee.URI output=grantee
+| table _time eventID userIdentity.userName requestParameters.bucketName grantee
+----
+
+[cols="1,3,1,1,3", options="header"]
+|===
+|_time |eventID |userName |bucketName |grantee
+|13:01:46 |`ab45689d-69cd-41e7-8705-5350402cf7ac` |`bstoll` |`frothlywebcode` |`LogDelivery` と `global/AllUsers`
+|13:57:54 |`9a33d8df-1e16-4d58-b36d-8e80ce68f8a3` |`bstoll` |`frothlywebcode` |`LogDelivery` のみ
+|===
+
+13:01:46 の呼び出しで `AllUsers` に READ と WRITE が付与され，13:57:54 の呼び出しで元に戻されている．
+公開したのは 1 件目である．
+
+.答え
+[%collapsible.answer]
+====
+`ab45689d-69cd-41e7-8705-5350402cf7ac`
+====
+
+[[q2105]]
+=== 2105: Bud のユーザー名
+
+[quote]
+____
+What is Bud's username?
+____
+
+配点：10 点
+
+.方針
+2104 のイベントの `userIdentity.userName` を読む．
+
+.答え
+[%collapsible.answer]
+====
+`bstoll`
+====
+
+[[q2106]]
+=== 2106: 公開された S3 バケット
+
+[quote]
+____
+What is the name of the S3 bucket that was made publicly accessible?
+____
+
+配点：10 点
+
+.方針
+2104 のイベントの `requestParameters.bucketName` を読む．
+
+.答え
+[%collapsible.answer]
+====
+`frothlywebcode`
+====
+
+[[q2107]]
+=== 2107: 公開中にアップロードされたテキストファイル
+
+[quote]
+____
+What is the name of the text file that was successfully uploaded into the S3 bucket while it was publicly accessible?
+____
+
+配点：10 点
+
+.方針
+S3 のアクセスログで，公開されていた時間帯（13:01:46〜13:57:54）のオブジェクトのアップロード（`REST.PUT.OBJECT`）を探す．
+
+[source,spl]
+----
+index=botsv3 sourcetype=aws:s3:accesslogs frothlywebcode REST.PUT.OBJECT *.txt
+| table _raw
+----
+
+----
+... frothlywebcode [20/Aug/2018:13:02:44 +0000] 52.66.146.128 - ... REST.PUT.OBJECT OPEN_BUCKET_PLEASE_FIX.txt "PUT /OPEN_BUCKET_PLEASE_FIX.txt HTTP/1.1" 200 ...
+----
+
+公開の約 1 分後に，外部のアドレスから `OPEN_BUCKET_PLEASE_FIX.txt`（「バケットが公開されているので直してください」）が置かれ，
+ステータス 200 で成功している．公開バケットを探して回る第三者による書き込みである．
+
+NOTE: 同じ時間帯には `frothly_html_memcached.tar.gz` など .txt 以外のファイルもアップロードされている．
+問題はテキストファイルを問うているので `*.txt` で絞る．
+
+.答え
+[%collapsible.answer]
+====
+`OPEN_BUCKET_PLEASE_FIX.txt`
+====
+
+[[q2108]]
+=== 2108: Windows のエディションが異なる端末の FQDN
+
+[quote]
+____
+What is the FQDN of the endpoint that is running a different Windows operating system edition than the others?
+____
+
+配点：15 点
+
+.方針
+端末の構成情報（`winhostmon` の `Type=OperatingSystem`）で OS 名を比べる．
+
+[source,spl]
+----
+index=botsv3 sourcetype=winhostmon Type=OperatingSystem
+| stats values(OS) as os by host
+----
+
+`BSTOLL-L` だけが `Microsoft Windows 10 Enterprise` で，他はすべて `Microsoft Windows 10 Pro` である．
+
+FQDN は Windows のイベントログの `Computer`（または `ComputerName`）から分かる．
+
+[source,spl]
+----
+index=botsv3 sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational host=BSTOLL-L
+| stats count by Computer
+----
+
+.答え
+[%collapsible.answer]
+====
+`BSTOLL-L.froth.ly`
+====
+
+[[q2109]]
+=== 2109: コインマイニングで最初に CPU 100% に達したプロセス
+
+[quote]
+____
+A Frothly endpoint exhibits signs of coin mining activity. What is the name of the first process to reach 100 percent CPU utilization from this activity on this endpoint?
+____
+
+配点：15 点
+
+.方針
+2110 で分かるとおり，マイニングをしていた端末は `BSTOLL-L` である．
+この端末のプロセスごとの CPU 使用率（`PerfmonMk:Process` の `%_Processor_Time`）が 100% に達したプロセスを，最初の時刻順に並べる．
+
+[source,spl]
+----
+index=botsv3 host=BSTOLL-L sourcetype=PerfmonMk:Process instance!=Idle instance!=_Total
+| where '%_Processor_Time'>=100
+| stats min(_time) as first count by instance
+| sort first
+| eval first=strftime(first, "%F %T")
+----
+
+[cols="2,2,1", options="header"]
+|===
+|instance |first |count
+|`MicrosoftEdgeCP#2` |2018-08-20 09:36:26 |1
+|`chrome#5` |2018-08-20 13:37:50 |3
+|`chrome#4` |2018-08-20 13:38:30 |129
+|`MsMpEng` |2018-08-20 14:04:31 |1
+|===
+
+2110 で見る Coinhive への DNS 問い合わせは 13:27〜13:39 に集中しており，CPU 使用率の上昇（13:37〜）はこの直後である．
+9:36 の `MicrosoftEdgeCP#2` は 1 回だけの一時的な負荷で，マイニングとは関係がない．
+マイニングによって最初に 100% に達したのは `chrome#5` である．
+
+NOTE: `instance` は Perfmon のインスタンス名で，同じ名前のプロセスが複数あると `#番号` が付く．
+問題は実行ファイル名（`chrome.exe`）ではなくインスタンス名を期待している．
+
+WARNING: 「from this activity（このマイニング活動による）」を読み落として `MicrosoftEdgeCP#2` を答えると不正解になる．
+writeup では `MicrosoftEdgeCP` 系の候補を 3 つ試して外したチームがあった．
+
+.答え
+[%collapsible.answer]
+====
+`chrome#5`
+====
+
+[[q2110]]
+=== 2110: 実際に Monero を採掘した端末
+
+[quote]
+____
+What is the short hostname of the only Frothly endpoint to actually mine Monero cryptocurrency?
+____
+
+配点：10 点
+
+.方針
+Coinhive は Monero をブラウザで採掘させるサービスで，採掘中は `wsNNN.coinhive.com` という WebSocket サーバーに接続する．
+この名前を DNS で問い合わせた端末を探す．
+
+[source,spl]
+----
+index=botsv3 sourcetype=stream:dns coinhive
+| stats count by src_ip query{}
+----
+
+`ws001`〜`ws019.coinhive.com` を問い合わせているのは `192.168.247.131` だけである．
+このアドレスの端末は Sysmon で確かめられる．
+
+[source,spl]
+----
+index=botsv3 sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=3 SourceIp=192.168.247.131
+| stats count by host
+----
+
+`BSTOLL-L` である．2109 の CPU 使用率とも一致する．
+
+.答え
+[%collapsible.answer]
+====
+`BSTOLL-L`
+====
+
+[[q2111]]
+=== 2111: コインマイナーの最初のシグネチャ ID
+
+[quote]
+____
+Using Splunk's event order functions, what is the first seen signature ID of the coin miner threat according to Frothly's Symantec Endpoint Protection data?
+____
+
+配点：15 点
+
+.方針
+Symantec のログからコインマイナーの検知を取り出し，「イベントの順序」を扱う関数（`first`/`last`）でシグネチャ ID を調べる．
+
+[source,spl]
+----
+index=botsv3 sourcetype=symantec:ep:security:file JSCoinminer
+| rex "CIDS Signature ID: (?<sid>\d+)"
+| stats first(sid) as first last(sid) as last earliest(sid) as earliest latest(sid) as latest
+----
+
+[cols="1,1,1,1", options="header"]
+|===
+|first |last |earliest |latest
+|30356 |30358 |30356 |30358
+|===
+
+検知されたシグネチャは `30356`（JSCoinminer Download 6）と `30358`（JSCoinminer Download 8）の 2 種類で，
+多くのイベントで両者が同じ時刻に記録されている．
+
+Splunk の検索結果は新しい順に並ぶので，「最初に見られた（first seen）」イベントは結果の **最後** にある．
+結果の最後の値を返す `last(sid)` が `30358` である．
+実際に結果を古い順に並べ直すと，最も古いイベントは `30358` である．
+
+[source,spl]
+----
+index=botsv3 sourcetype=symantec:ep:security:file JSCoinminer
+| rex "CIDS Signature ID: (?<sid>\d+)"
+| reverse
+| head 3
+| table _time sid
+----
+
+WARNING: `earliest(sid)` は時刻が同じイベントの中からどちらを選ぶかが決まっておらず，この問題では `30356` を返す．
+`30356` を提出すると不正解になる（<<sec_pitfalls>>）．
+
+.答え
+[%collapsible.answer]
+====
+`30358`
+====
+
+[[q2112]]
+=== 2112: そのシグネチャの名前
+
+[quote]
+____
+According to Frothly's Symantec Endpoint Protection logs, what is the name of the signature that detected the coin miner threat in the previous question? Omit the "Web Attack:" prefix.
+____
+
+配点：10 点
+
+.方針
+2111 のシグネチャ ID `30358` に対応するシグネチャ名（`CIDS Signature string`）を読む．
+
+[source,spl]
+----
+index=botsv3 sourcetype=symantec:ep:security:file "CIDS Signature ID: 30358"
+| rex "CIDS Signature string: (?<sig>[^,]+)"
+| stats count by sig
+----
+
+`Web Attack: JSCoinminer Download 8` である．問題文の指示どおり `Web Attack: ` を除いて答える．
+
+.答え
+[%collapsible.answer]
+====
+`JSCoinminer Download 8`
+
+（`Web Attack: ` を付けても正解として受け付けられる）
+====
+
+[[q2114]]
+=== 2114: コインマイナーを阻止できた端末
+
+[quote]
+____
+What is the short hostname of the only Frothly endpoint to show evidence of defeating the cryptocurrency threat?
+____
+
+配点：15 点
+
+.方針
+Symantec がコインマイナーの通信を「blocked」した端末を探す．
+ログの 3 列目がコンピューター名である．
+
+[source,spl]
+----
+index=botsv3 sourcetype=symantec:ep:security:file JSCoinminer
+| rex "^[^,]*,[^,]*,(?<computer>[^,]+),"
+| stats count by computer
+----
+
+すべて `BTUN-L` である．イベントの本文には次のように書かれている．
+
+----
+[SID: 30358] Web Attack: JSCoinminer Download 8 attack blocked. Traffic has been blocked for this application: C:\PROGRAM FILES (X86)\GOOGLE\CHROME\APPLICATION\CHROME.EXE
+... Intrusion URL: www.brewertalk.com/forumdisplay.php?fid=8
+----
+
+`BTUN-L` では Symantec がマイナーを阻止しており，マイニングは起きていない．
+`Intrusion URL` から，コインマイナーは brewertalk.com のページに埋め込まれていたことも分かる．
+
+.答え
+[%collapsible.answer]
+====
+`BTUN-L`
+====
+
+[[q2115]]
+=== 2115: IAM で最も多くの種類のエラーを出したアクセスキー
+
+[quote]
+____
+What IAM user access key generates the most distinct errors when attempting to access IAM resources?
+____
+
+配点：15 点
+
+.方針
+IAM（`eventSource=iam.amazonaws.com`）へのエラーになった呼び出しを，アクセスキーごとに「エラーの種類数」で数える．
+
+[source,spl]
+----
+index=botsv3 sourcetype=aws:cloudtrail eventSource=iam.amazonaws.com errorCode=*
+| stats dc(errorMessage) as errors values(eventName) as api by userIdentity.accessKeyId userIdentity.userName
+| sort -errors
+----
+
+[cols="2,1,1,3", options="header"]
+|===
+|accessKeyId |userName |errors |api
+|`AKIAJOGCDXJ5NW5PXUPA` |`web_admin` |5 |`CreateAccessKey CreateUser DeleteAccessKey GetUser ListAccessKeys`
+|`AKIAIGKL572SFDPOKLHA` |`splunk_access` |1 |`GetAccountPasswordPolicy`
+|===
+
+`web_admin` のキー `AKIAJOGCDXJ5NW5PXUPA` が，5 種類の IAM 操作をすべて権限不足で拒否されている．
+これが GitHub に流出したキーで，第三者がユーザーやキーの作成を試みた跡である．
+
+TIP: キーの流出は，メールの記録（`ms:o365:reporting:messagetrace`）にある GitGuardian からの通知
+「[FrothlyBeers/BrewingIOT] Aws apikey exposed on GitHub」からも分かる．
+
+.答え
+[%collapsible.answer]
+====
+`AKIAJOGCDXJ5NW5PXUPA`
+====
+
+[[q2116]]
+=== 2116: AWS が開いたサポートケースの ID
+
+[quote]
+____
+What is the support case ID that Amazon opens on Bud's behalf after the account compromise notification?
+____
+
+配点：10 点
+
+.方針
+AWS からのメールの件名を探す．件名は自動抽出されないことがあるので `spath` で取り出す．
+
+[source,spl]
+----
+index=botsv3 sourcetype=stream:smtp
+| spath subject
+| search subject=*Support*
+| table _time subject
+----
+
+----
+Amazon Web Services: New Support case: 5244329601
+----
+
+.答え
+[%collapsible.answer]
+====
+`5244329601`
+====
+
+[[q2118]]
+=== 2118: 流出したキーで作成を試みたキーの対象リソース
+
+[quote]
+____
+Using the leaked key, the adversary makes an unauthorized attempt to create a key for a specific resource. What is the name of that resource?
+____
+
+配点：10 点
+
+.方針
+アクセスキーを作る API は `CreateAccessKey` である．拒否されたときのエラーメッセージに対象リソースが書かれている．
+
+[source,spl]
+----
+index=botsv3 sourcetype=aws:cloudtrail eventName=CreateAccessKey
+| table _time userIdentity.userName userAgent errorCode errorMessage
+----
+
+----
+User: arn:aws:iam::622676721278:user/web_admin is not authorized to perform: iam:CreateAccessKey on resource: user nullweb_admin
+----
+
+対象リソースは `user nullweb_admin` である．
+
+WARNING: `web_admin` と思い込んで補正しないこと．エラーメッセージの文字列どおり `nullweb_admin` が期待されている．
+`requestParameters` は空（null）なので，エラーメッセージから読む．
+
+.答え
+[%collapsible.answer]
+====
+`nullweb_admin`
+====
+
+[[q2119]]
+=== 2119: 不正な describe-account の User-Agent
+
+[quote]
+____
+What is the full user agent string of the application that originated the unauthorized describe-account request?
+____
+
+配点：10 点
+
+.方針
+アカウント情報を取得する API（`DescribeAccountAttributes`）のうち，拒否されたものの `userAgent` を読む．
+
+[source,spl]
+----
+index=botsv3 sourcetype=aws:cloudtrail eventName=DescribeAccount* errorCode=*
+| table _time eventName userIdentity.userName userAgent errorCode
+----
+
+09:27:06 に `web_admin` のキーで呼び出され，`Client.UnauthorizedOperation` で拒否されている．
+User-Agent は `ElasticWolf/5.1.6`（AWS を操作する GUI クライアント）である．
+
+NOTE: `bstoll` による同じ API の呼び出し（User-Agent が `signin.amazonaws.com`）は，コンソールにログインしたときの正規の操作である．
+
+.答え
+[%collapsible.answer]
+====
+`ElasticWolf/5.1.6`
+====

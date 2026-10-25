@@ -1,0 +1,364 @@
+[[chap_botsv2_mallory]]
+== BOTSv2 (3): Mallory の Mac 端末の調査
+
+=== シナリオ
+
+Frothly の社員 Mallory Kraeusen が使う 2 台の Mac で異常が報告された．
+
+* `MACLORY-AIR13`：ファイルの拡張子が `.crypt` に変わり，開けなくなった
+* `kutekitten`：不審なプロセスが動き，見慣れないドメインへの DNS 問い合わせが出ている
+
+この章では問題 1301〜1309 を扱う．
+主に使うデータは次のとおり．
+
+* `osquery_results`：osquery によるファイル監視（`file_events`），プロセス，USB デバイスの記録
+* `interfaces` / `ps`：Unix and Linux アドオンが取得したインターフェース情報・プロセス一覧
+* `pan:traffic`：Palo Alto のアプリケーション識別結果（`app`）
+* `stream:dns`：DNS の問い合わせ
+
+NOTE: Palo Alto のログ（`src_user=mkraeusen`）では，`MACLORY-AIR13` は `10.0.4.4`，`kutekitten` は `10.0.4.2` として記録されている．
+端末自身のインターフェース情報に出てくる `192.168.x.x` とは異なるので，ネットワークのログを調べるときはこちらを使う．
+
+[[q1301]]
+=== 1301: MACLORY-AIR13 の en0 の MAC アドレス
+
+[quote]
+____
+According to the network interface data collected from Mallory's corporate MacBook (MACLORY-AIR13), what is the MAC address of its en0 interface?
+____
+
+配点：10 点
+
+.方針
+端末のインターフェース情報（`interfaces`）を読む．
+
+[source,spl]
+----
+index=botsv2 host=MACLORY-AIR13 sourcetype=interfaces
+| head 1
+| table _raw
+----
+
+----
+en0        00:0c:29:f6:f3:ed  192.168.1.15  ...
+----
+
+WARNING: ARP やネットワーク機器のログから MAC アドレスを拾うと，通信相手やルーターのものを答えてしまうことがある．
+問題文が指定するとおり，端末自身が記録したインターフェース情報を使うこと．
+
+.答え
+[%collapsible.answer]
+====
+`00:0c:29:f6:f3:ed`
+====
+
+[[q1302]]
+=== 1302: Mallory が観たがっていたエピソード
+
+[quote]
+____
+What episode of Game of Thrones is Mallory excited to watch? Answer with the HBO episode title.
+____
+
+配点：10 点
+
+.方針
+osquery のファイル監視で，`Downloads` フォルダーに置かれた動画ファイルの名前を探す．
+
+[source,spl]
+----
+index=botsv2 host=MACLORY-AIR13 sourcetype=osquery_results GoT
+| stats count by columns.target_path
+----
+
+`GoT.S07E02.BOTS.BOTS.BOTS.mkv`（とその `.torrent`）がある．
+「Game of Thrones」のシーズン 7 第 2 話で，HBO のエピソードタイトルは「Stormborn」である．
+
+NOTE: ファイル名からタイトルへの対応はログには書かれていない．エピソード一覧などの一般的な情報で確認する．
+
+.答え
+[%collapsible.answer]
+====
+`Stormborn`
+====
+
+[[q1303]]
+=== 1303: Tor と判定された通信の実際のプロトコル
+
+[quote]
+____
+Considering the Tor-related threat intelligence, what protocol often used for file transfer is actually responsible for the generated traffic?
+____
+
+配点：10 点
+
+.方針
+脅威インテリジェンスの「Tor ノード」リストに一致した通信が，実際には何のアプリケーションだったかを確かめる．
+Palo Alto の App-ID（`app` フィールド）で，Mallory の端末の通信を分類する．
+
+[source,spl]
+----
+index=botsv2 sourcetype=pan:traffic src_user=mkraeusen
+| stats count by src_ip app
+| sort -count
+----
+
+両方の端末で `bittorrent` が圧倒的に多い．
+BitTorrent は不特定多数のピアと通信するため，ピアの中に Tor ノードとして登録されたアドレスが含まれていると，
+Tor の脅威インテリジェンスに一致してしまう．
+1302 の `.torrent` ファイルとも整合する．
+
+NOTE: 元の BOTS では Splunk Enterprise Security の脅威インテリジェンスで Tor の一致を確認する問題だった．
+演習環境には Enterprise Security がないため，アプリケーション識別から実体を確かめる．
+なお Suricata の Tor 関連アラート（`alert.signature=*TOR*`）は Amber の端末 `10.0.2.101` のもので，こちらは 1106 の Tor Browser による本物の Tor 通信である．
+
+.答え
+[%collapsible.answer]
+====
+`bittorrent`
+====
+
+[[q1304]]
+=== 1304: PowerPoint ファイルが暗号化された時刻（PDT）
+
+[quote]
+____
+At what hour, minute, and second (PDT, 24h HH:MM:SS) does the ransomware actually encrypt Mallory's PowerPoint presentation? Do not use index time.
+____
+
+配点：15 点
+
+.方針
+osquery のファイル監視で，暗号化後の `.pptx.crypt` ファイルのイベントを探し，イベントの中に記録された時刻を読む．
+
+[source,spl]
+----
+index=botsv2 host=MACLORY-AIR13 sourcetype=osquery_results "Frothly_marketing_campaign_Q317.pptx.crypt"
+| table _time columns.action columns.time columns.ctime
+----
+
+[cols="1,1,1,1", options="header"]
+|===
+|_time |columns.action |columns.time |columns.ctime
+|21:50:43 |CREATED など |1503093023 |1503093022
+|===
+
+`_time`（21:50:43）は osquery がイベントを出力した時刻で，実際のファイル操作より遅れている．
+ファイル操作の時刻はイベントの中の `columns.time`（イベント発生時刻）や `columns.ctime`（ファイルの変更時刻）にある．
+UNIX 時刻を UTC に直すと 21:50:23 / 21:50:22 で，PDT（UTC−7）では 14:50:23 / 14:50:22 になる．
+
+[source,spl]
+----
+index=botsv2 host=MACLORY-AIR13 sourcetype=osquery_results "Frothly_marketing_campaign_Q317.pptx.crypt"
+| eval pdt_time=strftime('columns.time' - 7*3600, "%H:%M:%S"), pdt_ctime=strftime('columns.ctime' - 7*3600, "%H:%M:%S")
+| stats values(pdt_time) values(pdt_ctime)
+----
+
+TIP: `strftime` は Splunk の表示タイムゾーンで整形する．表示タイムゾーンが UTC の場合は上のように 7 時間引けばよい．
+
+.答え
+[%collapsible.answer]
+====
+`14:50:22`
+
+（`columns.time` を使った `14:50:23` も正解として受け付けられる）
+====
+
+[[q1305]]
+=== 1305: 実行ファイルの書き込みから最初の暗号化までの秒数
+
+[quote]
+____
+How many seconds elapsed between the ransomware executable being written to disk and the first local file encryption? Use index time.
+____
+
+配点：15 点
+
+.方針
+osquery のファイル監視で，偽の Office パッチャー（`Office 2016 Patcher.app`）が作られた時刻と，
+最初の `.crypt` ファイルが作られた時刻を比べる．
+
+[source,spl]
+----
+index=botsv2 host=MACLORY-AIR13 sourcetype=osquery_results name=*file_events* columns.action=CREATED (columns.target_path="*Patcher.app" OR columns.target_path="*.crypt")
+| rename columns.target_path as path
+| eval kind=if(match(path, "\.crypt$"), "crypt", "patcher")
+| stats min(_time) as first by kind
+| eval first=strftime(first, "%T")
+----
+
+[cols="1,1", options="header"]
+|===
+|kind |first（_time）
+|patcher |21:48:31
+|crypt |21:50:43
+|===
+
+差は 2 分 12 秒＝132 秒である．
+
+WARNING: この問題の「index time」は，1304 の「ファイルに記録された時刻」と対比して，
+Splunk のイベント時刻（`_time`）を指している．
+Splunk の厳密な取り込み時刻 `_indextime` で計算すると 135 秒，ファイルの時刻（`columns.time`）で計算すると 148 秒になり，どちらも正解にならない．
+
+.答え
+[%collapsible.answer]
+====
+`132`
+====
+
+[[q1306]]
+=== 1306: kutekitten の C&C ドメイン（アルファベット順で 1 番目）
+
+[quote]
+____
+Which fully-qualified domain name (alphabetically first) is used as a C&C destination by the malware on kutekitten?
+____
+
+配点：10 点
+
+.方針
+`kutekitten`（`10.0.4.2`）の DNS 問い合わせから，ダイナミック DNS サービスのドメインを探す．
+マルウェアの C&C には，IP アドレスを自由に変えられるダイナミック DNS（duckdns.org，hopto.org など）がよく使われる．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:dns src_ip=10.0.4.2 ("*duckdns.org" OR "*hopto.org" OR "*crabdance.com")
+| stats count min(_time) as first max(_time) as last by query{}
+| eval first=strftime(first, "%F %T"), last=strftime(last, "%F %T")
+----
+
+[cols="2,1,2,2", options="header"]
+|===
+|query{} |count |first |last
+|`eidk.duckdns.org` |6 |2017-08-03 18:20:26 |2017-08-03 18:22:56
+|`eidk.hopto.org` |4 |2017-08-03 18:20:16 |2017-08-03 18:21:36
+|`hh4de2.hopto.org` |2 |2017-08-03 18:22:16 |2017-08-03 18:22:16
+|`poliahu.crabdance.com` |38 |2017-08-18 22:32:10 |2017-08-29 10:27:59
+|===
+
+`eidk.hopto.org` と `eidk.duckdns.org` は，同じ名前（`eidk`）で別のサービスを使い，約 80 秒ごとに交互に問い合わせている．
+これはマルウェアの定期的な通信（ビーコン）の特徴である．
+この時間帯は，1308・1309 で分かるマルウェアの出現（18:19）の直後でもある．
+
+NOTE: `poliahu.crabdance.com` は件数こそ多いが，2 週間後から始まっておりマルウェアの出現と時間的なつながりがない．
+`hh4de2.hopto.org` は 1 回だけで，定期的な通信のパターンではない．
+
+.答え
+[%collapsible.answer]
+====
+`eidk.duckdns.org`
+====
+
+[[q1307]]
+=== 1307: kutekitten の C&C ドメイン（アルファベット順で 2 番目）
+
+[quote]
+____
+Which fully-qualified domain name (alphabetically second) is used as the other C&C destination?
+____
+
+配点：10 点
+
+.方針
+1306 で見つけたもう一方のドメインを答える．
+
+`d` < `h` なので，`eidk.duckdns.org` が 1 番目，`eidk.hopto.org` が 2 番目である．
+
+.答え
+[%collapsible.answer]
+====
+`eidk.hopto.org`
+====
+
+[[q1308]]
+=== 1308: マルウェアの持ち込みに使われた USB メモリのベンダー
+
+[quote]
+____
+Provide the vendor name of the USB drive that Kevin Lagerfield likely used to move malware onto kutekitten.
+____
+
+配点：15 点
+
+.方針
+osquery の USB デバイスの記録と，`Downloads` に不審なファイルが現れた時刻を突き合わせる．
+
+[source,spl]
+----
+index=botsv2 host=kutekitten sourcetype=osquery_results name=*usb_devices*
+| stats min(_time) as first by action columns.vendor columns.vendor_id columns.model columns.model_id
+| eval first=strftime(first, "%F %T")
+----
+
+[source,spl]
+----
+index=botsv2 host=kutekitten sourcetype=osquery_results name=*file_events* earliest="08/03/2017:18:00:00" latest="08/03/2017:18:25:00"
+| stats min(_time) as first by columns.target_path columns.action
+| eval first=strftime(first, "%T")
+----
+
+18:18:10 に `vendor_id=058f`（表示名は `Generic`，`Mass Storage`）の USB デバイスが接続され，
+直後の 18:19:07 に `Downloads/Important_HR_INFO_for_mkraeusen` が作られている．
+
+`vendor` の値は汎用の「Generic」なので，USB の **ベンダー ID** からメーカーを調べる．
+USB ID の公開一覧（Linux の `usb.ids` など）では，`058f` は Alcor Micro Corp. である．
+
+[source,bash]
+----
+$ grep '^058f' /usr/share/hwdata/usb.ids
+058f  Alcor Micro Corp.
+----
+
+.答え
+[%collapsible.answer]
+====
+`Alcor Micro Corp.`
+
+（`Alcor`・`Alcor Micro` も正解として受け付けられる）
+====
+
+[[q1309]]
+=== 1309: マルウェアのプロセス名
+
+[quote]
+____
+The malware infecting kutekitten appears as a specific process name in the process table when it is running. What is it?
+____
+
+配点：10 点
+
+.方針
+`ps` の記録（プロセス一覧）を見て，`MACLORY-AIR13` など他の端末にはないプロセスを探す．
+osquery のプロセス記録で実体を確かめる．
+
+[source,spl]
+----
+index=botsv2 host=kutekitten sourcetype=ps
+| stats count by USER COMMAND
+| sort COMMAND
+----
+
+`mkraeusen` のプロセスに `java` がある．
+osquery のプロセス記録では，この実体は Perl で，表示名を `java` に見せかけていることが分かる．
+
+[source,spl]
+----
+index=botsv2 host=kutekitten sourcetype=osquery_results name=*ProcessesInUserSpace*
+| spath path=columns.cmdline output=cmd
+| search cmd=java*
+| stats count by columns.name columns.path cmd
+----
+
+[cols="1,2,2", options="header"]
+|===
+|columns.name |columns.path |cmd
+|`perl5.18` |`/usr/bin/perl5.18` |`java XPC_FLAGS=0x0`
+|===
+
+問題はプロセス一覧に「見える」名前を問うているので，`java` を答える．
+
+.答え
+[%collapsible.answer]
+====
+`java`
+====

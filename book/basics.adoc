@@ -1,0 +1,208 @@
+[[chap_basics]]
+== Splunk 調査の基本
+
+この章では，全問題に共通する検索のコツと，つまずきやすいポイントをまとめる．
+問題を解き始める前に一度目を通しておくと，後の章が読みやすくなる．
+
+=== まずデータの棚卸しをする
+
+インシデント調査は「どんなログがあるか」を知るところから始まる．
+`tstats` はインデックスのメタデータだけを読むので，数億件のデータでも数秒で集計できる．
+
+[source,spl]
+----
+| tstats count where index=botsv1 by sourcetype
+| sort -count
+----
+
+`index=botsv2` や `index=botsv3` に変えて同じことをすると，それぞれのデータセットの構成が分かる．
+主な sourcetype と用途を <<tab_sourcetypes>> に示す．
+
+[[tab_sourcetypes]]
+.主な sourcetype と用途
+[cols="2,3,1", options="header"]
+|===
+|sourcetype |内容 |主に使う版
+
+|`stream:http` / `stream:dns` / `stream:smtp` / `stream:smb` / `stream:ftp` / `stream:tcp`
+|Splunk Stream が取得したネットワーク通信．HTTP のヘッダや本文，DNS の問い合わせ，メール本文まで入っている
+|v1〜v3
+
+|`XmlWinEventLog:Microsoft-Windows-Sysmon/Operational`
+|Sysmon．EventCode 1 = プロセス生成，2 = ファイル作成時刻の変更，3 = ネットワーク接続，11 = ファイル作成
+|v1〜v3
+
+|`WinEventLog:Security`
+|Windows のセキュリティログ．4688 = プロセス生成，4720 = ユーザー作成，5145 = 共有フォルダーへのアクセス
+|v1〜v3
+
+|`suricata` / `fgt_utm` / `pan:traffic`
+|IDS（Suricata），FortiGate，Palo Alto のログ
+|v1, v2
+
+|`iis` / `access_combined`
+|Web サーバーのアクセスログ
+|v1〜v3
+
+|`winregistry`
+|レジストリの変更
+|v1, v2
+
+|`osquery_results`（v2）/ `osquery:results`（v3）
+|osquery の定期クエリ結果（プロセス，ファイル監視，USB デバイスなど）
+|v2, v3
+
+|`ps` / `interfaces` / `netstat`
+|Unix and Linux アドオンのスクリプト出力
+|v2, v3
+
+|`aws:cloudtrail` / `aws:s3:accesslogs`
+|AWS API の監査ログ，S3 のアクセスログ
+|v3
+
+|`ms:o365:management` / `ms:o365:reporting:messagetrace`
+|Office 365 の監査ログ，メールの配送記録
+|v3
+
+|`symantec:ep:*`
+|Symantec Endpoint Protection
+|v3
+
+|`PerfmonMk:Process`
+|Windows のプロセスごとのパフォーマンスカウンター
+|v3
+|===
+
+TIP: 全件検索（`index=botsv1` だけで条件のない検索）は，古い形式の巨大なバケットを展開するため 10 分以上かかる．
+必ず `sourcetype=` やキーワードで絞り込んでから検索すること．
+件数を数えるだけなら `tstats` を使う．
+
+=== キーワード検索から始め，フィールドで絞る
+
+手がかりが文字列（ドメイン名，ファイル名，IP アドレスなど）であれば，まずキーワードで検索し，
+どの sourcetype にヒットするかを見るのが早い．
+
+[source,spl]
+----
+index=botsv1 3791.exe
+| stats count by sourcetype
+----
+
+ヒットした sourcetype が分かったら，そのデータのフィールドを使って絞り込み・集計する．
+検索画面左側の「フィールド」一覧で，各フィールドの値の分布を確認できる．
+
+=== よく使うコマンド
+
+[cols="1,3", options="header"]
+|===
+|コマンド |用途
+
+|`stats count by X`
+|X ごとの件数．調査の基本
+
+|`stats dc(X)`
+|X の種類数（distinct count）．「ユニークな〜はいくつ」という問題で使う
+
+|`stats values(X)`
+|X の値の一覧（重複なし）
+
+|`table` / `sort 0 _time`
+|イベントを時系列で並べて読む．`sort` は既定で 1 万件までなので，全件並べるときは `sort 0` とする
+
+|`rex field=X "(?<name>正規表現)"`
+|正規表現でフィールドを切り出す
+
+|`spath`
+|JSON から値を取り出す．長い JSON は自動抽出が途中で切れることがあるので，明示的に `spath` を使う
+
+|`eval len(X)` / `strftime()` / `urldecode()`
+|文字数，時刻の整形，URL デコードなど
+
+|`eventstats` / `streamstats`
+|集計結果を各行に付け加える／行を順に処理する
+|===
+
+[[sec_pitfalls]]
+=== つまずきやすいポイント
+
+writeup で複数のチームが引っかかった点を挙げる．
+
+==== 配列フィールドは `{}` が付く
+
+Splunk Stream の JSON では，配列の値は `name{}`，`query{}`，`host_addr{}`，`receiver_email{}` のように
+`{}` 付きのフィールド名になる．
+`name` で検索して何も出ないときは，`name{}` を試すこと．
+`stats` で集計するときは `'query{}'` のようにシングルクォートで囲む．
+
+==== 長い本文は `spath` で取り出す
+
+メール本文や HTTP 応答（`dest_content`）のような長い値は，自動抽出されないことがある．
+`spath path=dest_content output=d` のように明示的に取り出すと確実である．
+
+==== 時刻は 3 種類ある
+
+[cols="1,3", options="header"]
+|===
+|時刻 |意味
+
+|`_time`
+|イベントの時刻．Splunk の検索画面に表示される時刻
+
+|`_indextime`
+|Splunk に取り込まれた時刻．BOTS のデータでは，元の環境で取り込まれた当時の時刻が残っている
+
+|イベント内の時刻
+|ファイルの `ctime`/`mtime`，Symantec の `Begin`，HTTP の `timestamp`（リクエスト開始）など，ログの中身に書かれた時刻
+|===
+
+問題文が「index time を使わずに」「index time を使って」と指定しているときは，どの時刻を使うかで答えが変わる．
+該当する問題（1304・1305）で詳しく説明する．
+
+==== `first`/`last` と `earliest`/`latest` は違う
+
+Splunk の検索結果は **新しい順** に返る．
+そのため `stats first(X)` は「結果の先頭＝最も新しいイベント」，`stats last(X)` は「最も古いイベント」の値を返す．
+イベント時刻で選びたいときは `earliest(X)`/`latest(X)` を使う．
+同じ時刻のイベントが複数あると，両者の結果が変わることがある（問題 2111）．
+
+==== 件数・種類数・ユーザー数を区別する
+
+「最も多く使われたパスワード」が，ログイン試行の回数なのか，そのパスワードを使ったユーザーの数なのかで答えが変わる（問題 1507）．
+問題文の単位をよく読み，`count`・`dc()`・`values()` を使い分けること．
+
+==== 答えの書式
+
+* 解答は大文字・小文字を区別しないが，空白や記号は区別される．`C = US` のように空白を含む値はそのまま写す．
+* 複数の値を答える問題は「カンマ区切り・空白なし・アルファベット順」の指定に従う．
+* ファイル名は拡張子まで，URI パスは先頭の `/` を含める，など問題文の指示を守る．
+
+=== Sysmon と Windows イベントログの読み方
+
+Sysmon のプロセス生成（EventCode 1）には，次のフィールドがある．
+攻撃の流れは，親子関係（`ParentProcessId` → `ProcessId`）をたどると見えてくる．
+
+[cols="1,3", options="header"]
+|===
+|フィールド |内容
+
+|`Image` / `CommandLine`
+|起動したプログラムとコマンドライン
+
+|`ParentImage` / `ParentCommandLine`
+|親プロセス
+
+|`ProcessId` / `ParentProcessId`
+|プロセス ID と親のプロセス ID
+
+|`Hashes`
+|実行ファイルのハッシュ（`MD5=...,SHA256=...` の形式）
+
+|`TargetFilename`
+|EventCode 2・11 の対象ファイル
+
+|`DestinationIp` / `DestinationPort` / `DestinationHostname`
+|EventCode 3 の接続先
+|===
+
+TIP: フィールドが自動抽出されない場合は，`rex` で `_raw` から取り出せる．
+例：`| rex "<Data Name='TargetFilename'>(?<TargetFilename>[^<]+)"`

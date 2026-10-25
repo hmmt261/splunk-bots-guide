@@ -1,0 +1,204 @@
+[[chap_botsv2_taedonggang]]
+== BOTSv2 (4): APT グループ Taedonggang
+
+=== シナリオ
+
+連邦法執行機関から，APT グループ「Taedonggang」が Frothly を狙っているとの情報提供があった．
+このグループはパスワード付き zip ファイルを添付したスピアフィッシングメールを送り，
+感染端末から FTP や暗号化通信で攻撃者のインフラと通信するという．
+
+この章では問題 1401〜1405 を扱う．
+主に使うデータは `stream:smtp`，`stream:tcp`，`stream:dns`，`stream:ftp` と Sysmon である．
+
+[[q1401]]
+=== 1401: パスワード付き zip の添付ファイル名
+
+[quote]
+____
+A Federal law enforcement agency reports that Taedonggang often spearphishes its victims with zip files that have to be opened with a password. What is the name of the attachment sent to Frothly?
+____
+
+配点：10 点
+
+.方針
+メールの添付ファイル名（`attach_filename{}`）から `.zip` を探す．
+メールのイベントは長いので，`spath` で明示的に取り出してから絞り込む．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:smtp *.zip
+| spath sender_email
+| spath subject
+| spath path=attach_filename{} output=attach
+| spath path=receiver_email{} output=rcpt
+| search attach=*.zip
+| stats count values(rcpt) as rcpt by sender_email subject attach
+----
+
+[cols="2,1,1,3", options="header"]
+|===
+|sender_email |subject |attach |rcpt
+|`jsmith@urinalysis.com` |Invoice |`invoice.zip` |`abungstein@`，`btun@`，`fyodor@`，`klagerfield@froth.ly`
+|===
+
+.答え
+[%collapsible.answer]
+====
+`invoice.zip`
+====
+
+[[q1402]]
+=== 1402: zip のパスワード
+
+[quote]
+____
+What is the password to open that zip attachment?
+____
+
+配点：10 点
+
+.方針
+同じメールの本文を読む．本文は quoted-printable なので，行末の `=` と改行（ソフト改行）を取り除いてから探す．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:smtp invoice.zip
+| spath path=content_body{} output=body
+| eval body=replace(mvjoin(body, " "), "=\r?\n", "")
+| rex field=body "(?<pw>enter the password[^.]*)"
+| stats count by pw
+----
+
+本文に「Please enter the password (912345678).」とある．
+
+WARNING: ソフト改行を取り除かずに `password` で探すと，`Please enter the =` で行が切れていて数字が続かない．
+
+.答え
+[%collapsible.answer]
+====
+`912345678`
+====
+
+[[q1403]]
+=== 1403: 通信の大半で使われている SSL の発行者
+
+[quote]
+____
+The Taedonggang APT group encrypts most of their traffic with SSL. What is the SSL Issuer they use for the majority of their traffic? Copy the field exactly, including spaces.
+____
+
+配点：10 点
+
+.方針
+環境全体で `ssl_issuer` を集計し，一般的な認証局でない値を探す．
+その値がどの宛先との通信で使われているかを確認する．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:tcp ssl_issuer=*
+| stats count by ssl_issuer
+| sort -count
+----
+
+一般的な認証局や Splunk の自己署名証明書に混ざって，国名（`C = US`）しか書かれていない発行者がある．
+この値の通信先を調べる．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:tcp ssl_issuer="C = US"
+| stats count by dest_ip dest_port
+| sort -count
+----
+
+すべて `45.77.65.211` の 443 番で，これは brewertalk.com を攻撃した送信元（<<chap_botsv2_brewertalk>>）と同じアドレスである．
+この宛先との SSL 通信の大半（14,189 件）が `C = US` を使っている．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:tcp dest_ip=45.77.65.211 ssl_issuer=*
+| stats count by ssl_issuer
+----
+
+WARNING: 空白を含めてそのまま写すこと．`C=US` や `US` では正解にならない．
+また，環境全体で最も多い `SplunkCommonCA` を答えないこと．
+
+.答え
+[%collapsible.answer]
+====
+`C = US`
+====
+
+[[q1404]]
+=== 1404: 160.153.91.7 に対応するドメイン
+
+[quote]
+____
+Frothly workstations connected to the Taedonggang infrastructure IP address 160.153.91.7. What domain of interest is associated with that IP address?
+____
+
+配点：10 点
+
+.方針
+DNS の応答から，このアドレスに解決されたドメイン名を探す．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:dns 160.153.91.7
+| stats count by name{}
+| sort -count
+----
+
+`hildegardsfarm.com` が `160.153.91.7` に解決されている（もう 1 件は逆引きの `7.91.153.160.in-addr.arpa`）．
+
+TIP: 1405 の FTP 通信でも，ログインのユーザー名（`USER` コマンドの引数）にこのドメインが含まれている．
+
+.答え
+[%collapsible.answer]
+====
+`hildegardsfarm.com`
+====
+
+[[q1405]]
+=== 1405: winsys32.dll によってダウンロードされた不審なファイル
+
+[quote]
+____
+What unusual file (for an American company) does winsys32.dll cause to be downloaded into the Frothly environment?
+____
+
+配点：15 点
+
+.方針
+`winsys32.dll` を使ったプロセスを Sysmon で探し，それが何をしているかを確認する．
+
+[source,spl]
+----
+index=botsv2 sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1 winsys32.dll
+| stats count by host ParentImage Image CommandLine
+----
+
+`ftp.exe -i -s:winsys32.dll` が `wrk-btun`，`wrk-klagerf`，`venus` の 3 台で PowerShell から実行されている．
+`-s:` は FTP のコマンドを書いたファイルを読み込むオプションで，`winsys32.dll` は名前こそ DLL だが中身は FTP のスクリプトである．
+
+FTP でダウンロード（`RETR`）されたファイルを調べる．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:ftp dest_ip=160.153.91.7 method=RETR
+| stats count by method_parameter src_ip
+----
+
+`nc.exe`，`psexec.exe`，`wget64.exe` などのツールに混ざって，韓国語のファイル名の `.hwp` ファイルがある．
+`.hwp` は韓国で広く使われているワープロ（一太郎のような位置づけの Hangul Word Processor）の形式で，
+米国の企業で扱うのは不自然である．
+
+IMPORTANT: Splunk に記録されたファイル名は，ハングルが字母に分解された形（Unicode の NFD 正規化，32 文字）になっている．
+画面からコピーしてそのまま提出すると，見た目は同じでも正解（NFC 正規化，17 文字）と一致しない場合がある．
+提出前に NFC に正規化すること．
+例：`python3 -c "import unicodedata,sys; print(unicodedata.normalize('NFC', sys.argv[1]))" '<コピーした文字列>'`
+
+.答え
+[%collapsible.answer]
+====
+`나는_데이비드를_사랑한다.hwp`（「私はデイビッドを愛している」）
+====

@@ -1,0 +1,510 @@
+[[chap_botsv1_cerber]]
+== BOTSv1 (2): Cerber ランサムウェア
+
+=== シナリオ
+
+2016 年 8 月 24 日，Wayne Enterprises 社の社員 Bob Smith の端末 `we8105desk` で
+ランサムウェア **Cerber** が動き，端末とファイルサーバー上のファイルが暗号化された．
+感染の経路，暗号化の範囲，攻撃者のインフラを明らかにする．
+
+この章では問題 401〜414 を扱う．
+主に使うデータは次のとおり．
+
+* `XmlWinEventLog:Microsoft-Windows-Sysmon/Operational`：端末のプロセス生成・ファイル操作・通信
+* `stream:dns` / `stream:http` / `stream:smb`：端末の通信
+* `suricata`：IDS のアラート
+* `winregistry`：レジストリの変更（USB デバイスの接続など）
+* `WinEventLog:Security`：ファイルサーバーの共有フォルダーへのアクセス記録
+
+.感染の流れ（この章で明らかになること）
+[cols="1,4", options="header"]
+|===
+|時刻（UTC） |出来事
+
+|16:42 頃
+|Bob が USB メモリ（ボリューム名 `MIRANDA_PRI`）を挿す
+
+|16:43:12
+|USB メモリ上の `D:\Miranda_Tate_unveiled.dotm` を Word で開く
+
+|16:43:21
+|マクロが `cmd.exe` を起動し，VBScript（`20429.vbs`）を生成して `wscript.exe` で実行
+
+|16:48:12〜13
+|`solidaritedeproximite.org` から `mhtr.jpg` をダウンロード
+
+|16:48:21
+|`121214.tmp`（Cerber 本体）が起動し，`osk.exe` を作って暗号化を開始
+
+|17:05 頃〜
+|ファイルサーバー `we9041srv` の共有フォルダーを暗号化
+
+|17:15:12
+|身代金の支払いページ `cerberhhyed5frqa.xmfir0.win` を DNS で引く
+|===
+
+[[q401]]
+=== 401: we8105desk の IP アドレス
+
+[quote]
+____
+What was the most likely IPv4 address of we8105desk on 24AUG2016?
+____
+
+配点：5 点
+
+.方針
+端末の Sysmon のネットワーク接続（EventCode 3）では，接続元のアドレスが `SourceIp` に記録される．
+最も多い送信元アドレスが端末自身のアドレスである．
+
+[source,spl]
+----
+index=botsv1 host=we8105desk sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=3
+| stats count by SourceIp
+| sort -count
+----
+
+`192.168.250.100` が 5 万件以上で圧倒的に多い．
+`127.0.0.1` やブロードキャストアドレスは端末のアドレスではない．
+
+TIP: SMB の通信（`index=botsv1 sourcetype=stream:smb we8105desk | stats count by src_ip dest_ip`）でも同じアドレスが確認できる．
+
+.答え
+[%collapsible.answer]
+====
+`192.168.250.100`
+====
+
+[[q402]]
+=== 402: 発報回数が最も少ない Cerber のシグネチャ
+
+[quote]
+____
+Amongst the Suricata signatures that detected the Cerber malware, which one alerted the fewest number of times? Submit only the signature ID (7 digits).
+____
+
+配点：5 点
+
+.方針
+Suricata のアラートを `cerber` で絞り，シグネチャごとに件数を数える．
+
+[source,spl]
+----
+index=botsv1 sourcetype=suricata cerber
+| stats count by alert.signature_id alert.signature
+| sort count
+----
+
+[cols="1,3,1", options="header"]
+|===
+|alert.signature_id |alert.signature |count
+|2816763 |ETPRO TROJAN Ransomware/Cerber Checkin 2 |1
+|2816764 |ETPRO TROJAN Ransomware/Cerber Checkin Error ICMP Response |2
+|2820156 |ETPRO TROJAN Ransomware/Cerber Onion Domain Lookup |2
+|===
+
+WARNING: `*erber*` のようなワイルドカードで検索すると `kerberos` にもヒットする．
+
+.答え
+[%collapsible.answer]
+====
+`2816763`
+====
+
+[[q403]]
+=== 403: 暗号化の最後に誘導される FQDN
+
+[quote]
+____
+What fully qualified domain name (FQDN) does the Cerber ransomware attempt to direct the user to at the end of its encryption phase?
+____
+
+配点：15 点
+
+.方針
+暗号化が終わると，Cerber は身代金の支払いページ（Tor の .onion へのゲートウェイ）を表示する．
+端末の DNS の問い合わせから，`cerber` を含むドメインを探す．
+
+[source,spl]
+----
+index=botsv1 sourcetype=stream:dns src_ip=192.168.250.100 "query{}"=*cerber*
+| stats count min(_time) as first by query{}
+| eval first=strftime(first, "%F %T")
+----
+
+17:15:12 に `cerberhhyed5frqa.xmfir0.win` を問い合わせている．
+402 の Suricata のアラート「Cerber Onion Domain Lookup」も同じ時刻に出ている．
+
+TIP: DNS の問い合わせ名は配列フィールド `query{}` に入っている．
+`query` や `name` で検索して何も出ないときは `{}` を付けること（<<sec_pitfalls>>）．
+
+.答え
+[%collapsible.answer]
+====
+`cerberhhyed5frqa.xmfir0.win`
+====
+
+[[q404]]
+=== 404: 最初にアクセスした不審なドメイン
+
+[quote]
+____
+What was the first suspicious domain visited by we8105desk on 24AUG2016?
+____
+
+配点：15 点
+
+.方針
+8 月 24 日の端末の DNS の A レコード問い合わせを，ドメインごとに最初の時刻で並べる．
+社内ドメインや Microsoft のドメインを除いて最初に出てくるものが答えである．
+
+[source,spl]
+----
+index=botsv1 sourcetype=stream:dns src_ip=192.168.250.100 "query_type{}"=A earliest="08/24/2016:00:00:00" latest="08/25/2016:00:00:00"
+| eval q=mvindex('query{}', 0)
+| stats min(_time) as first count by q
+| sort first
+| eval first=strftime(first, "%T")
+----
+
+[cols="2,1", options="header"]
+|===
+|q |first
+|`wpad.waynecorpinc.local` / `wpad` |16:34:21
+|`crl.microsoft.com` |16:34:26
+|`dns.msftncsi.com` |16:34:39
+|`www.microsoft.com` |16:34:50
+|`solidaritedeproximite.org` |**16:48:12**
+|`ipinfo.io` |16:49:24
+|===
+
+その日の最初の不審なドメインは `solidaritedeproximite.org` である．
+直後の 16:48:13 に，このドメインから `mhtr.jpg` をダウンロードしている（問題 413）．
+
+.答え
+[%collapsible.answer]
+====
+`solidaritedeproximite.org`
+====
+
+[[q405]]
+=== 405: VBScript で最初に定義される関数
+
+[quote]
+____
+During the initial Cerber infection a VB script is run. What is the name of the first function defined in the VB script?
+____
+
+配点：15 点
+
+.方針
+VBScript は，Word のマクロが起動した `cmd.exe` のコマンドラインの中で 1 行ずつ書き出されている．
+そのため，端末で最も長いコマンドラインを探すと見つかる．
+
+[source,spl]
+----
+index=botsv1 host=we8105desk sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1
+| eval len=len(CommandLine)
+| sort 0 -len
+| head 1
+| table _time len ParentImage Image CommandLine
+----
+
+16:43:21 に `WINWORD.EXE` が起動した `cmd.exe` のコマンドラインが 4,490 文字ある．
+先頭は次のようになっている．
+
+----
+cmd.exe /V /C set "GSI=%APPDATA%\%RANDOM%.vbs" && (for %i in ("DIm RWRL" "FuNCtioN GNbiPp(Pt5SZ1)" ...
+----
+
+`for` ループで 1 行ずつ `.vbs` ファイルに書き出しており，2 行目の `FuNCtioN GNbiPp(Pt5SZ1)` が最初の関数定義である．
+大文字・小文字を混ぜているのは，単純な文字列検知を避けるための難読化である．
+
+TIP: 関数名だけを取り出すなら，`| rex field=CommandLine "(?i)function\s+(?<fn>\w+)"` が使える．
+
+.答え
+[%collapsible.answer]
+====
+`GNbiPp`
+====
+
+[[q406]]
+=== 406: VBScript を含むフィールドの文字数
+
+[quote]
+____
+During the initial Cerber infection a VB script is run. The entire script, prefixed by the name of the launching .exe, can be found in a field in Splunk. What is the length in characters of that field?
+____
+
+配点：15 点
+
+.方針
+405 の SPL の `len` がそのまま答えになる．
+
+405 で見つけた `cmd.exe` の `CommandLine` は 4,490 文字である．
+このコマンドは子プロセス `wscript.exe` の `ParentCommandLine` にも同じ文字列で入っており，こちらも 4,490 文字である．
+
+WARNING: Sysmon の XML では `>` や `&` が `+&gt;+` `+&amp;+` とエスケープされている．
+`_raw` から自分で取り出してエスケープを戻すと 4,426 文字になり，答えと合わない．
+問題文のとおり「Splunk のフィールド」の長さを `len()` で測ること．
+
+.答え
+[%collapsible.answer]
+====
+`4490`
+====
+
+[[q407]]
+=== 407: Bob Smith が挿した USB メモリの名前
+
+[quote]
+____
+What is the name of the USB key inserted by Bob Smith?
+____
+
+配点：15 点
+
+.方針
+USB メモリを挿すと，Windows はデバイスの表示名（`FriendlyName`）をレジストリに書き込む．
+`winregistry` で `friendlyname` を含む変更を探す．
+
+[source,spl]
+----
+index=botsv1 host=we8105desk sourcetype=winregistry friendlyname
+| stats count by key_path data
+----
+
+キーのパスに `usbstor#disk&ven_generic&prod_flash_disk` があり，値（`data`）は `MIRANDA_PRI` である．
+
+NOTE: 405 で Word が開いたファイルは `D:\Miranda_Tate_unveiled.dotm` だった．
+`D:` はこの USB メモリであり，感染は USB メモリ上のマクロ付き文書から始まったことが分かる．
+
+.答え
+[%collapsible.answer]
+====
+`MIRANDA_PRI`
+====
+
+[[q408]]
+=== 408: ファイルサーバーのドメイン名
+
+[quote]
+____
+Bob Smith's workstation (we8105desk) was connected to a file server during the ransomware outbreak. What is the domain name of the file server?
+____
+
+配点：5 点
+
+.方針
+ファイル共有は SMB（TCP 445 番）で行われる．端末から 445 番への接続先を調べる．
+
+[source,spl]
+----
+index=botsv1 host=we8105desk sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=3 DestinationPort=445
+| stats count by DestinationHostname DestinationIp
+----
+
+接続先は `we9041srv`（`192.168.250.20`）だけである．
+SMB の通信を見ると，共有のパスとして `\\WE9041SRV\fileshare` や `\\we9041srv.waynecorpinc.local\IPC$` が使われている．
+
+[source,spl]
+----
+index=botsv1 sourcetype=stream:smb src_ip=192.168.250.100 path=*
+| stats count by dest_ip path
+----
+
+.答え
+[%collapsible.answer]
+====
+`we9041srv.waynecorpinc.local`
+
+（ホスト名だけの `we9041srv` も正解として受け付けられる）
+====
+
+[[q409]]
+=== 409: ファイルサーバーの IP アドレス
+
+[quote]
+____
+What is the IPv4 address of that file server?
+____
+
+配点：15 点
+
+.方針
+408 の SPL の `DestinationIp`（または SMB の `dest_ip`）を読む．
+
+.答え
+[%collapsible.answer]
+====
+`192.168.250.20`
+====
+
+[[q410]]
+=== 410: ファイルサーバー上で暗号化された PDF の数
+
+[quote]
+____
+How many distinct PDFs did the ransomware encrypt on the remote file server?
+____
+
+配点：20 点
+
+.方針
+ファイルサーバー側の Windows セキュリティログには，共有フォルダー内のファイルへのアクセスが
+EventCode 5145（詳細なファイル共有）として記録されている．
+対象ファイル名は `Relative_Target_Name` に入る．
+
+[source,spl]
+----
+index=botsv1 host=we9041srv sourcetype=WinEventLog:Security EventCode=5145 Relative_Target_Name="*.pdf"
+| stats dc(Relative_Target_Name) as pdfs values(Source_Address) as src
+----
+
+`.pdf` で終わるファイルは 257 種類で，アクセス元はすべて Bob の端末 `192.168.250.100` である．
+17:05 頃から，暗号化に伴う `DELETE` 権限でのアクセスが集中している（`| bin _time span=5m | stats count by _time Accesses` で確認できる）．
+
+WARNING: `*.pdf` をキーワードとして検索して `dc(Relative_Target_Name)` を数えると 258 になる．
+余分な 1 件は `Windows\system32\windows.data.pdf.dll` で，名前に「.pdf」を含むだけの DLL である．
+`Relative_Target_Name="*.pdf"` のように「.pdf で終わる」条件で絞ること．
+
+WARNING: 端末側の SMB 通信（`stream:smb`）で数えると 21 件や 256 件といった値になり，正解しない．
+SMB の記録は操作の種類や取得範囲によって欠けがあるため，サーバー側の監査ログを使う．
+
+.答え
+[%collapsible.answer]
+====
+`257`
+
+（`258` も正解として受け付けられる）
+====
+
+[[q411]]
+=== 411: 121214.tmp の最初の起動の ParentProcessId
+
+[quote]
+____
+The VB script launches 121214.tmp. What is the ParentProcessId of this initial launch?
+____
+
+配点：15 点
+
+.方針
+`121214.tmp` を含むプロセス生成イベントを時刻順に並べ，親子関係を確認する．
+
+[source,spl]
+----
+index=botsv1 host=we8105desk sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1 121214.tmp
+| sort 0 _time
+| table _time ProcessId Image ParentProcessId ParentImage CommandLine
+----
+
+[cols="1,1,2,1,2", options="header"]
+|===
+|_time |ProcessId |Image |ParentProcessId |CommandLine
+|16:48:21 |1476 |`cmd.exe` |**3968**（`wscript.exe`） |`cmd.exe /C START "" "...\121214.tmp"`
+|16:48:21 |2948 |`121214.tmp` |1476（`cmd.exe`） |`"...\121214.tmp"`
+|16:48:29 |3828 |`121214.tmp` |2948 |（自分自身を再起動）
+|===
+
+VBScript（`wscript.exe`，PID 3968）は `cmd.exe /C START` で `121214.tmp` を起動している．
+この「最初の起動」のイベント（`cmd.exe` のプロセス生成）の `ParentProcessId` は 3968 である．
+
+WARNING: `121214.tmp` 自身のイベントの親（`cmd.exe` の 1476）を答えると不正解になる．
+問題文は「VB スクリプトが 121214.tmp を起動した」操作の親を問うている．
+
+.答え
+[%collapsible.answer]
+====
+`3968`
+====
+
+[[q412]]
+=== 412: Bob のプロファイル内で暗号化された .txt ファイルの数
+
+[quote]
+____
+The Cerber ransomware encrypts files located in Bob Smith's Windows profile. How many .txt files does it encrypt?
+____
+
+配点：15 点
+
+.方針
+Cerber はファイルを暗号化するとき，ファイルの作成日時を書き換える．
+これは Sysmon の EventCode 2（File creation time changed）として記録される．
+Bob のプロファイル（`C:\Users\bob.smith.WAYNECORPINC\`）の下の `.txt` に絞って種類数を数える．
+
+[source,spl]
+----
+index=botsv1 host=we8105desk sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=2 TargetFilename="C:\\Users\\bob.smith.WAYNECORPINC\\*.txt"
+| stats dc(TargetFilename) values(Image)
+----
+
+406 種類で，操作したプロセスは Cerber が作った `osk.exe` である．
+
+WARNING: パスで絞らずに `osk.exe` が触った `.txt` を数えると 410 になる．
+差の 4 件は `C:\Sysmon` の下にあり，Bob のプロファイルの外である．
+
+.答え
+[%collapsible.answer]
+====
+`406`
+====
+
+[[q413]]
+=== 413: 暗号化プログラムを含むダウンロードファイル
+
+[quote]
+____
+The malware downloads a file that contains the Cerber ransomware cryptor code. What is the name of that file?
+____
+
+配点：15 点
+
+.方針
+404 で見つけた不審なドメインへの HTTP 通信を調べる．
+
+[source,spl]
+----
+index=botsv1 sourcetype=stream:http src_ip=192.168.250.100 site=solidaritedeproximite.org
+| table _time http_method uri http_content_type
+----
+
+16:48:13 に `GET /mhtr.jpg` を送っている．8 秒後の 16:48:21 に `121214.tmp`（Cerber 本体）が起動しており，
+このファイルから本体が取り出されたと考えられる．
+
+TIP: Suricata のファイル抽出ログ（`index=botsv1 sourcetype=suricata src_ip=192.168.250.100 OR dest_ip=192.168.250.100 fileinfo.filename=*`）でも確認できる．
+
+.答え
+[%collapsible.answer]
+====
+`mhtr.jpg`
+====
+
+[[q414]]
+=== 414: 暗号化プログラムの難読化手法
+
+[quote]
+____
+Now that you know the name of the ransomware's encryptor file, what obfuscation technique does it likely use?
+____
+
+配点：10 点
+
+.方針
+413 のファイルの「見た目」と「中身」の関係から考える．
+
+`mhtr.jpg` は拡張子が `.jpg` の画像ファイルとして配布されているが，中には実行ファイル（暗号化プログラム）が隠されている．
+画像などの無害に見えるデータの中に別のデータを埋め込む手法を **ステガノグラフィ（steganography）** という．
+IDS やプロキシは画像ファイルを詳しく検査しないことが多いため，検知を逃れるのに使われる．
+
+WARNING: VBScript の中にある XOR などの演算を答えた writeup があったが不正解だった．
+問題が問うているのは個々の演算ではなく，ファイルの隠し方である．
+
+NOTE: この問題はログから直接答えが出るものではなく，知識から推論する問題である．
+
+.答え
+[%collapsible.answer]
+====
+`steganography`
+====

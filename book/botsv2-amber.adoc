@@ -1,0 +1,242 @@
+[[chap_botsv2_amber]]
+== BOTSv2 (1): Amber Turing の情報持ち出し
+
+=== シナリオ
+
+BOTSv2 の舞台はビール醸造会社 **Frothly** である．
+主任研究員の Amber Turing が，買収話が流れた競合他社と接触し，社外秘の資料を送っている疑いがある．
+Amber の行動を Web とメールの記録から追う．
+
+この章では問題 1101〜1106 を扱う．
+主に使うデータは次のとおり．
+
+* `pan:traffic`：Palo Alto のファイアウォールログ．ユーザー名と IP アドレスの対応が分かる
+* `stream:http`：Web の閲覧
+* `stream:smtp`：メール（本文・添付ファイル名まで入っている）
+* `XmlWinEventLog:Microsoft-Windows-Sysmon/Operational`：端末のプロセス生成
+
+==== 準備：Amber の端末を特定する
+
+まず Amber が使っている端末の IP アドレスを調べる．
+Palo Alto のログにはユーザー名（`src_user`）が記録されている．
+
+[source,spl]
+----
+index=botsv2 sourcetype=pan:traffic src_user=*amber*
+| stats count by src_ip src_user
+----
+
+Amber（`frothly.local\amber.turing`）の端末は `10.0.2.101` である．
+ホスト名は `wrk-aturing`，メールアドレスは `aturing@froth.ly` である．
+
+[[q1101]]
+=== 1101: Amber が閲覧した競合他社のドメイン
+
+[quote]
+____
+Amber Turing visited a competitor's website to find contact information for their executive team. What is the website domain that she visited? Do not provide the FQDN. Answer example: google.com
+____
+
+配点：10 点
+
+.方針
+Amber の端末の HTTP 通信からアクセス先（`site`）を集計する．
+相手はビール会社なので，`beer` や `brew` を含むサイトに絞ると早い．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:http src_ip=10.0.2.101 site=*beer*
+| stats count by site
+----
+
+`www.berkbeer.com` だけがヒットする．
+問題文は「FQDN ではなくドメインで答える」と指定しているので，`www.` を除く．
+
+TIP: 絞り込まずに `stats count by site | sort count` とすると，件数の少ないサイトの中に紛れているのが分かる．
+広告や CDN のドメインが大量にあるので，業種から当たりを付けるのが効率的である．
+
+.答え
+[%collapsible.answer]
+====
+`berkbeer.com`
+====
+
+[[q1102]]
+=== 1102: 競合他社の CEO の氏名
+
+[quote]
+____
+Amber found the executive contact information and sent him an email. What is the CEO's name? Provide the first and last name.
+____
+
+配点：10 点
+
+.方針
+`berkbeer.com` とのメールを一覧にし，CEO とのやり取りの本文（署名）を読む．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:smtp *berkbeer.com*
+| spath sender_email
+| spath path=receiver_email{} output=receiver
+| spath subject
+| spath path=attach_filename{} output=attach
+| table _time sender_email receiver subject attach
+----
+
+[cols="2,2,2,3,2", options="header"]
+|===
+|_time |sender_email |receiver |subject |attach
+|2017-08-29 10:49 |`aturing@froth.ly` |`mberk@berkbeer.com` |Amber from Froth.ly |
+|2017-08-29 11:03 |`mberk@berkbeer.com` |`aturing@froth.ly` |Re: Amber from Froth.ly |
+|2017-08-29 11:08 |`hbernhard@berkbeer.com` |`aturing@froth.ly` |Heinz Bernhard Contact Information |
+|2017-08-30 15:08 |`aturing@froth.ly` |`hbernhard@berkbeer.com` |RE: Heinz Bernhard Contact Information |`Saccharomyces_cerevisiae_patent.docx`
+|===
+
+WARNING: メールのイベントは長いため，`sender_email` などのフィールドが自動抽出されないことがある．
+上のように `spath` で明示的に取り出し，絞り込みは `spath` の後の `search` で行うこと．
+
+`mberk@berkbeer.com` からの返信本文を読む．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:smtp *berkbeer.com*
+| spath sender_email
+| search sender_email=mberk@berkbeer.com
+| spath path=content_body{} output=body
+| table body
+----
+
+本文は quoted-printable でエンコードされているが（`=0A` が改行），そのままでも末尾の署名が読める．
+
+----
+Martin Berk=0ACEO=0A777.222.8765=0Amberk@berkbeer.com
+----
+
+.答え
+[%collapsible.answer]
+====
+`Martin Berk`
+====
+
+[[q1103]]
+=== 1103: もう一人の従業員のメールアドレス
+
+[quote]
+____
+After the initial contact with the CEO, Amber contacted another employee at this competitor. What is that employee's email address?
+____
+
+配点：10 点
+
+.方針
+1102 のメール一覧で，CEO 以外の `berkbeer.com` のアドレスを探す．
+
+CEO とのやり取りの後，`hbernhard@berkbeer.com`（Heinz Bernhard）から連絡先を知らせるメールが届き，
+Amber はこのアドレスに返信している．
+
+WARNING: Heinz Bernhard のメール本文の署名には `hernhard@berkbeer.com`（先頭の b がない）と書かれている．
+署名の誤記であり，実際にメールを送受信しているアドレス（`sender_email` / `receiver_email{}`）を答えること．
+
+.答え
+[%collapsible.answer]
+====
+`hbernhard@berkbeer.com`
+====
+
+[[q1104]]
+=== 1104: 競合他社に送った添付ファイル
+
+[quote]
+____
+What is the name of the file attachment that Amber sent to a contact at the competitor?
+____
+
+配点：10 点
+
+.方針
+1102 のメール一覧の `attach_filename{}` を見る．
+
+2017-08-30 に Amber から `hbernhard@berkbeer.com` へ送ったメールに，
+酵母（Saccharomyces cerevisiae）の特許に関する文書が添付されている．
+
+.答え
+[%collapsible.answer]
+====
+`Saccharomyces_cerevisiae_patent.docx`
+====
+
+[[q1105]]
+=== 1105: Amber の個人メールアドレス
+
+[quote]
+____
+What is Amber's personal email address?
+____
+
+配点：15 点
+
+.方針
+Heinz Bernhard は「個人のメールアドレスはないか」と尋ねている．
+Amber の返信（添付ファイル付きのメール）の本文を読む．
+
+[source,spl]
+----
+index=botsv2 sourcetype=stream:smtp *berkbeer.com*
+| spath sender_email
+| spath subject
+| search sender_email=aturing@froth.ly subject="RE: Heinz*"
+| spath path=content_body{} output=body
+| table body
+----
+
+このメールの本文は Base64 でエンコードされている．
+`VGhhbmtzIGZvciB0YWtpbmcg...` で始まる部分を Base64 デコードすると，次の文が現れる．
+
+----
+Thanks for taking the time today, As discussed here is the document I was referring to.
+Probably better to take this offline. Email me from now on at ambersthebest@yeastiebeastie.com
+----
+
+TIP: Splunk の標準機能には Base64 をデコードする関数がない．
+https://gchq.github.io/CyberChef/[CyberChef] の「From Base64」や，`base64 -d` コマンドを使うとよい．
+
+.答え
+[%collapsible.answer]
+====
+`ambersthebest@yeastiebeastie.com`
+====
+
+[[q1106]]
+=== 1106: Amber がインストールした Tor Browser のバージョン
+
+[quote]
+____
+What version of TOR Browser did Amber install to obfuscate her web browsing? Answer with numbers and delimiters.
+____
+
+配点：15 点
+
+.方針
+Tor Browser のインストーラーのファイル名にはバージョンが含まれる（`torbrowser-install-<バージョン>_<言語>.exe`）．
+Amber の端末でインストーラーが実行された記録を探す．
+
+[source,spl]
+----
+index=botsv2 host=wrk-aturing sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1 Image="*torbrowser-install*"
+| stats count by Image
+----
+
+`C:\Users\amber.turing\Downloads\torbrowser-install-7.0.4_en-US.exe` が実行されている．
+
+TIP: `index=botsv2 host=wrk-aturing torbrowser-install | stats count by sourcetype` のようにキーワードで検索すると，
+Sysmon のほかにレジストリ（`WinRegistry`）やパフォーマンスカウンターにも同じファイル名が残っている．
+
+WARNING: HTTP の通信からインストーラーのダウンロードを探しても見つからない（HTTPS で取得したと考えられる）．
+ネットワークで見つからないときは端末側のログに切り替える．
+
+.答え
+[%collapsible.answer]
+====
+`7.0.4`
+====
