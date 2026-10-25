@@ -20,7 +20,7 @@ NOTE: Palo Alto のログ（`src_user=mkraeusen`）では，`MACLORY-AIR13` は 
 端末自身のインターフェース情報に出てくる `192.168.x.x` とは異なるので，ネットワークのログを調べるときはこちらを使う．
 
 [[q1301]]
-=== 1301: MACLORY-AIR13 の en0 の MAC アドレス
+=== 1301: `MACLORY-AIR13` の `en0` の MAC アドレス
 
 [quote]
 ____
@@ -207,7 +207,7 @@ Splunk の厳密な取り込み時刻 `_indextime` で計算すると 135 秒，
 ====
 
 [[q1306]]
-=== 1306: kutekitten の C&C ドメイン（アルファベット順で 1 番目）
+=== 1306: `kutekitten` の C&C ドメイン（アルファベット順で 1 番目）
 
 [quote]
 ____
@@ -250,7 +250,7 @@ NOTE: `poliahu.crabdance.com` は件数こそ多いが，2 週間後から始ま
 ====
 
 [[q1307]]
-=== 1307: kutekitten の C&C ドメイン（アルファベット順で 2 番目）
+=== 1307: `kutekitten` の C&C ドメイン（アルファベット順で 2 番目）
 
 [quote]
 ____
@@ -300,7 +300,7 @@ index=botsv2 host=kutekitten sourcetype=osquery_results name=*file_events* earli
 18:18:10 に `vendor_id=058f`（表示名は `Generic`，`Mass Storage`）の USB デバイスが接続され，
 直後の 18:19:07 に `Downloads/Important_HR_INFO_for_mkraeusen` が作られている．
 
-`vendor` の値は汎用の「Generic」なので，USB の **ベンダー ID** からメーカーを調べる．
+`vendor` の値は汎用の「`Generic`」なので，USB の **ベンダー ID** からメーカーを調べる．
 USB ID の公開一覧（Linux の `usb.ids` など）では，`058f` は Alcor Micro Corp. である．
 
 [source,bash]

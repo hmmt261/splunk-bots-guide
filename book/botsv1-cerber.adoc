@@ -44,7 +44,7 @@
 |===
 
 [[q401]]
-=== 401: we8105desk の IP アドレス
+=== 401: `we8105desk` の IP アドレス
 
 [quote]
 ____
@@ -365,8 +365,8 @@ index=botsv1 host=we9041srv sourcetype=WinEventLog:Security EventCode=5145 Relat
 17:05 頃から，暗号化に伴う `DELETE` 権限でのアクセスが集中している（`| bin _time span=5m | stats count by _time Accesses` で確認できる）．
 
 WARNING: `*.pdf` をキーワードとして検索して `dc(Relative_Target_Name)` を数えると 258 になる．
-余分な 1 件は `Windows\system32\windows.data.pdf.dll` で，名前に「.pdf」を含むだけの DLL である．
-`Relative_Target_Name="*.pdf"` のように「.pdf で終わる」条件で絞ること．
+余分な 1 件は `Windows\system32\windows.data.pdf.dll` で，名前に「`.pdf`」を含むだけの DLL である．
+`Relative_Target_Name="*.pdf"` のように「`.pdf` で終わる」条件で絞ること．
 
 WARNING: 端末側の SMB 通信（`stream:smb`）で数えると 21 件や 256 件といった値になり，正解しない．
 SMB の記録は操作の種類や取得範囲によって欠けがあるため，サーバー側の監査ログを使う．
@@ -420,7 +420,7 @@ WARNING: `121214.tmp` 自身のイベントの親（`cmd.exe` の 1476）を答�
 ====
 
 [[q412]]
-=== 412: Bob のプロファイル内で暗号化された .txt ファイルの数
+=== 412: Bob のプロファイル内で暗号化された `.txt` ファイルの数
 
 [quote]
 ____

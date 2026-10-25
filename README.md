@@ -3,9 +3,6 @@
 Splunk 社のセキュリティ演習データセット **Boss of the SOC (BOTS)** v1・v2・v3 を使った演習（全 98 問）の
 解き方を解説するガイドです。
 
-各問題について「方針 → SPL → 解説 → つまずきやすい点 → 答え（折りたたみ）」の順に説明しています。
-掲載している SPL は、演習環境（Splunk Enterprise 9.2、受講者用の検索専用ロール）で実行して結果を確認済みです。
-
 ## 構成
 
 ```
@@ -17,7 +14,7 @@ book/                 本文（AsciiDoc）
   botsv2-*.adoc       BOTSv2（1101〜1509）
   botsv3-*.adoc       BOTSv3（2100〜2403）
   closing.adoc        まとめ
-  appendix.adoc       解答一覧・検証メモ・参考資料
+  appendix.adoc       解答一覧・参考資料
 generate.sh           dist/index.html を生成する
 .github/workflows/    GitHub Pages へのデプロイ
 ```
@@ -41,12 +38,6 @@ docker run --rm -u "$(id -u):$(id -g)" -v "$PWD":/documents \
   asciidoctor/docker-asciidoctor:1.80 \
   asciidoctor -o dist/index.html book/main.adoc
 ```
-
-## 公開（GitHub Pages）
-
-1. このリポジトリを GitHub に push する
-2. リポジトリの Settings → Pages → Build and deployment の Source を **GitHub Actions** にする
-3. `main` ブランチへの push のたびに `.github/workflows/pages.yml` がビルドして公開する
 
 ## 出典
 

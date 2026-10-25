@@ -119,7 +119,7 @@ NOTE: Splunk の `perc25`/`perc75` は値の間を補間した近似値を返す
 ====
 
 [[q2402]]
-=== 2402: hoth で権限昇格に使われた脆弱性の CVE
+=== 2402: `hoth` で権限昇格に使われた脆弱性の CVE
 
 [quote]
 ____
@@ -157,7 +157,7 @@ index=botsv3 sourcetype=stream:http uri_path=/frothlyinventory/integration/saveG
 
 Ubuntu 16.04.4（カーネル 4.4.0-116）向けのカーネル権限昇格プログラムである．
 このコメントで公開エクスプロイトのデータベースなどを検索すると，Linux カーネルの eBPF の検証器の不備
-（符号拡張の誤りによる任意のメモリ読み書き）を突く既知のエクスプロイトであり，CVE-2017-16995 に対応することが分かる．
+（符号拡張の誤りによる任意のメモリ読み書き）を突く既知のエクスプロイトであり，`CVE-2017-16995` に対応することが分かる．
 
 osquery のプロセス記録を見ると，Tomcat の権限（UID 111）で `gcc colonel.c -o colonelnew` によりコンパイルし（11:15），
 `./colonelnew` を実行した（11:17）後に，root（UID 0）で `useradd` が成功している（11:24，2303）．
@@ -182,7 +182,7 @@ IMPORTANT: 取り出したソースコードはコンパイル・実行しない
 ====
 
 [[q2403]]
-=== 2403: hoth でコマンド実行に使われた脆弱性の CVE
+=== 2403: `hoth` でコマンド実行に使われた脆弱性の CVE
 
 [quote]
 ____
@@ -208,7 +208,7 @@ OGNL 式（`${(#szgx='multipart/form-data').(#dm=@ognl.OgnlContext@DEFAULT_MEMBE
 
 `integration/saveGangster.action` は Apache Struts 2 のサンプルアプリ（Struts Showcase）にある，
 Struts 1 プラグインの機能例である．
-このアクションで入力値が OGNL 式として評価されてしまう脆弱性は S2-048 として公表されており，CVE-2017-9791 が割り当てられている．
+このアクションで入力値が OGNL 式として評価されてしまう脆弱性は S2-048 として公表されており，`CVE-2017-9791` が割り当てられている．
 
 WARNING: 「Struts の RCE」として有名な CVE-2017-5638（S2-045，Content-Type ヘッダへの注入）とは別物である．
 注入箇所（フォームの `name` パラメーター）とアクション名（`saveGangster.action`）を根拠に特定すること．

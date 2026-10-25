@@ -133,7 +133,7 @@ index=botsv3 sourcetype=hardware
 CPU_TYPE              Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz
 ----
 
-Intel のプロセッサ番号は「E5-2676」の部分である（`v3` は世代を表す）．
+Intel のプロセッサ番号は「`E5-2676`」の部分である（`v3` は世代を表す）．
 
 .答え
 [%collapsible.answer]
@@ -242,7 +242,7 @@ index=botsv3 sourcetype=aws:s3:accesslogs frothlywebcode REST.PUT.OBJECT *.txt
 公開の約 1 分後に，外部のアドレスから `OPEN_BUCKET_PLEASE_FIX.txt`（「バケットが公開されているので直してください」）が置かれ，
 ステータス 200 で成功している．公開バケットを探して回る第三者による書き込みである．
 
-NOTE: 同じ時間帯には `frothly_html_memcached.tar.gz` など .txt 以外のファイルもアップロードされている．
+NOTE: 同じ時間帯には `frothly_html_memcached.tar.gz` など `.txt` 以外のファイルもアップロードされている．
 問題はテキストファイルを問うているので `*.txt` で絞る．
 
 .答え
