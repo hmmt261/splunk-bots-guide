@@ -30,7 +30,7 @@
 
 |`stream:smtp` / `stream:ftp`
 |Splunk Stream が取得したメール（本文を含む）と FTP の通信（`stream:ftp` は v2 のみ）
-|v2, v3
+|v2，v3
 
 |`XmlWinEventLog:Microsoft-Windows-Sysmon/Operational`
 |Sysmon．`EventCode` 1 = プロセス生成，2 = ファイル作成時刻の変更，3 = ネットワーク接続，11 = ファイル作成
@@ -42,7 +42,7 @@
 
 |`suricata` / `fgt_utm` / `pan:traffic`
 |IDS（Suricata），FortiGate，Palo Alto のログ
-|v1, v2
+|v1，v2
 
 |`iis` / `access_combined`
 |Web サーバーのアクセスログ
@@ -50,15 +50,15 @@
 
 |`winregistry`
 |レジストリの変更
-|v1, v2
+|v1，v2
 
 |`osquery_results`（v2）/ `osquery:results`（v3）
 |osquery の定期クエリ結果（プロセス，ファイル監視，USB デバイスなど）
-|v2, v3
+|v2，v3
 
 |`ps` / `interfaces` / `netstat`
 |Unix and Linux アドオンのスクリプト出力
-|v2, v3
+|v2，v3
 
 |`aws:cloudtrail` / `aws:s3:accesslogs`
 |AWS API の監査ログ，S3 のアクセスログ
