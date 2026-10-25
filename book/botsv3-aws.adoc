@@ -159,6 +159,7 @@ ACL の付与先（Grantee）に「全員（`AllUsers`）」が含まれるも�
 ----
 index=botsv3 sourcetype=aws:cloudtrail eventName=PutBucketAcl
 | spath path=requestParameters.AccessControlPolicy.AccessControlList.Grant{}.Grantee.URI output=grantee
+| sort _time
 | table _time eventID userIdentity.userName requestParameters.bucketName grantee
 ----
 

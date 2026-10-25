@@ -47,7 +47,7 @@ AMI がどの OS かはログには書かれていないので，外部の情報
 * Ubuntu の公式 AMI の一覧（https://cloud-images.ubuntu.com/locator/ec2/[Ubuntu Cloud Image Finder]）で AMI ID を検索する
 * AWS CLI で `aws ec2 describe-images --region us-east-1 --image-ids ami-41e0b93b` を実行する（古い AMI は登録が抹消されていることがある）
 
-`ami-41e0b93b` は Ubuntu 16.04 LTS のイメージで，そのコードネームは「Xenial Xerus」である．
+`ami-41e0b93b` は Ubuntu 16.04 LTS のイメージで，そのコードネームは `Xenial Xerus` である．
 
 WARNING: 最初の試行以外の AMI（`ami-79aeae19` や `ami-af79ebc0` など）を調べても，同じ Ubuntu 16.04 で答えが一致することがあるが，それは偶然である．
 `sort 0 _time` で時刻順に並べ，最初の 1 件を使うこと．
@@ -157,7 +157,7 @@ index=botsv3 sourcetype=stream:http uri_path=/frothlyinventory/integration/saveG
 // 4.4.0-116-generic #140-Ubuntu SMP Mon Feb 12 21:23:04 UTC 2018 x86_64
 ----
 
-Ubuntu 16.04.4（カーネル 4.4.0-116）向けのカーネル権限昇格プログラムである．
+Ubuntu 16.04.4（カーネル `4.4.0-116`）向けのカーネル権限昇格プログラムである．
 このコメントで公開エクスプロイトのデータベースなどを検索すると，Linux カーネルの eBPF の検証器の不備
 （符号拡張の誤りによる任意のメモリ読み書き）を突く既知のエクスプロイトであり，`CVE-2017-16995` に対応することが分かる．
 

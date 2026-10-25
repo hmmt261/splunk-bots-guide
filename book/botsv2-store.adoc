@@ -63,10 +63,11 @@ index=botsv2 sourcetype=stream:http dberry398
 |===
 |`_time` |`uri_path` |`form_key` |`phpsessid`
 |07:03:55.178 |`/magento2/customer/account/createpost/` |`lwh9Ql7oUbnJUqxR` |`r51ctj1efg8bo7lacaq399nci5`
-|07:03:55.364 | |`lwh9Ql7oUbnJUqxR` |`o6fc5a2rdoufmb8en8bqvfbav2`
-|07:06:36.890 | |`lwh9Ql7oUbnJUqxR` |`mlhg4l49hi8hn93b2abtr75j42`
+|07:03:55.364 |（なし） |`lwh9Ql7oUbnJUqxR` |`o6fc5a2rdoufmb8en8bqvfbav2`
+|07:06:36.890 |（なし） |`lwh9Ql7oUbnJUqxR` |`mlhg4l49hi8hn93b2abtr75j42`
 |===
 
+2・3 件目のイベントには URI が記録されていないが，Cookie の `form_key` は同じ値である．
 `PHPSESSID` はリクエストごとに変わっているのに対し，`form_key` は一貫している．
 個々のクリックを結び付けているのは `form_key` である．
 

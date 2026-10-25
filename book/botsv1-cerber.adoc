@@ -30,7 +30,10 @@
 |16:43:21
 |マクロが `cmd.exe` を起動し，VBScript（`20429.vbs`）を生成して `wscript.exe` で実行
 
-|16:48:12〜13
+|16:48:12
+|`solidaritedeproximite.org` を DNS で名前解決する
+
+|16:48:13
 |`solidaritedeproximite.org` から `mhtr.jpg` をダウンロード
 
 |16:48:21
@@ -166,6 +169,8 @@ index=botsv1 sourcetype=stream:dns src_ip=192.168.250.100 "query_type{}"=A earli
 | sort first
 | eval first=strftime(first, "%T")
 ----
+
+主な行を抜粋すると次のとおり（`count` 列は省略し，`wpad` の 2 種類は 1 行にまとめた）．
 
 [cols="2,1", options="header"]
 |===
@@ -411,10 +416,10 @@ index=botsv1 host=we8105desk sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/
 
 3 行目は `121214.tmp` が自分自身を再起動したものである．
 
-VBScript（`wscript.exe`，PID 3968）は `cmd.exe /C START` で `121214.tmp` を起動している．
-この「最初の起動」のイベント（`cmd.exe` のプロセス生成）の `ParentProcessId` は 3968 である．
+VBScript（`wscript.exe`，PID `3968`）は `cmd.exe /C START` で `121214.tmp` を起動している．
+この「最初の起動」のイベント（`cmd.exe` のプロセス生成）の `ParentProcessId` は `3968` である．
 
-WARNING: `121214.tmp` 自身のイベントの親（`cmd.exe` の 1476）を答えると不正解になる．
+WARNING: `121214.tmp` 自身のイベントの親（`cmd.exe` の `1476`）を答えると不正解になる．
 問題文は「VB スクリプトが `121214.tmp` を起動した」操作の親を問うている．
 
 .答え

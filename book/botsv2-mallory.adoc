@@ -184,6 +184,7 @@ index=botsv2 host=MACLORY-AIR13 sourcetype=osquery_results name=*file_events* co
 | rename columns.target_path as path
 | eval kind=if(match(path, "\.crypt$"), "crypt", "patcher")
 | stats min(_time) as first by kind
+| sort first
 | eval first=strftime(first, "%T")
 ----
 
