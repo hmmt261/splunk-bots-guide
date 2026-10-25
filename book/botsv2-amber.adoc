@@ -84,6 +84,8 @@ index=botsv2 sourcetype=stream:smtp *berkbeer.com*
 | table _time sender_email receiver subject attach
 ----
 
+主なメールを抜粋すると次のとおり．
+
 [cols="2,2,2,3,2", options="header"]
 |===
 |`_time` |`sender_email` |`receiver` |`subject` |`attach`
@@ -155,7 +157,7 @@ ____
 配点：10 点
 
 .方針
-1102 のメール一覧の `attach_filename{}` を見る．
+1102 のメール一覧の `attach` 列（`attach_filename{}`）を見る．
 
 2017-08-30 に Amber から `hbernhard@berkbeer.com` へ送ったメールに，
 酵母（Saccharomyces cerevisiae）の特許に関する文書が添付されている．

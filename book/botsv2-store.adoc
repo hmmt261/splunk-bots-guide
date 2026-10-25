@@ -72,7 +72,7 @@ index=botsv2 sourcetype=stream:http dberry398
 
 WARNING: 最初の `PHPSESSID`（`r51ctj1efg8bo7lacaq399nci5`）は不正解になる．
 
-NOTE: 公開されている元の BOTS の解答では `1wh9Q17o...` と書かれていることがあるが，これは l（エル）を 1・7 と誤記したものである．
+NOTE: 公開されている元の BOTS の解答では `1wh9Q17o...` と書かれていることがあるが，これは l（エル）を 1 と誤記したものである．
 ログに記録された値をそのまま答えること．
 
 .答え
@@ -189,7 +189,7 @@ index=botsv2 sourcetype=stream:http site=store.froth.ly uri_path="*loginPost*"
 |===
 |`domain` |`users` |`sample`
 |`elude.in` |52 |`A.Worthy AA.Worthy AB.Worthy AC.Worthy AD.Worthy AE.Worthy`
-|`gmail.com` |29 |`SamIAm66 TheAbaft TheBest ...`
+|`gmail.com` |29 |`SamIAm66 TheAbaft TheBest ...`（以下省略）
 |===
 
 `elude.in` のアカウントは `A.Worthy`，`AA.Worthy`，`AB.Worthy`…… と機械的に連番で作られている．
@@ -356,7 +356,7 @@ index=botsv2 sourcetype=stream:http site=store.froth.ly uri_path="*/coupons/*" s
 | sort -count
 ----
 
-1 つの User-Agent だけが 99 回失敗している．
+1 つの User-Agent が 99 回と突出して多く失敗している．
 OS のバージョンが `Windows NT 6.333` という実在しない値で，偽装した User-Agent と分かる．
 
 WARNING: 空白や記号を含めて完全に一致させる必要がある．画面からコピー＆ペーストすること．

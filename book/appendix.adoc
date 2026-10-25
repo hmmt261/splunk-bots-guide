@@ -577,7 +577,7 @@
 |Linux サーバーの `/tmp` に送り込まれた 2 つのファイル
 |15
 |`+colonel,definitelydontinvestigatethisfile.sh+`
-|順序違い
+|`+definitelydontinvestigatethisfile.sh,colonel+`
 
 |<<q2312,2312>>
 |C&C サーバーでアクセスされる URL のパス
@@ -589,7 +589,7 @@
 |C&C サーバーと通信した端末
 |15
 |`+ABUNGST-L,FYODOR-L+`
-|順序違い
+|`+FYODOR-L,ABUNGST-L+`
 
 |<<q2400,2400>>
 |最初に起動を試みた Ubuntu イメージのコードネーム
@@ -623,6 +623,6 @@
 * Splunk, https://docs.splunk.com/Documentation/Splunk/latest/SearchReference/[Search Reference]
 * GCHQ, https://gchq.github.io/CyberChef/[CyberChef]
 * Canonical, https://cloud-images.ubuntu.com/locator/ec2/[Ubuntu Cloud Image Finder]
-* Apache Struts, https://cwiki.apache.org/confluence/display/WW/S2-048[S2-048]（CVE-2017-9791）
+* Apache Struts, https://cwiki.apache.org/confluence/display/WW/S2-048[S2-048]（`CVE-2017-9791`）
 * NVD, https://nvd.nist.gov/vuln/detail/CVE-2017-16995[CVE-2017-16995]
 * andickinson, https://andickinson.github.io/blog/splunk-boss-of-the-soc-v1/[TryHackMe: Splunk - Boss of the SOC v1]（問題 202 の確認に使用）

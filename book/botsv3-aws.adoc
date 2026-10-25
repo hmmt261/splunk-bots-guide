@@ -165,9 +165,11 @@ index=botsv3 sourcetype=aws:cloudtrail eventName=PutBucketAcl
 [cols="1,3,1,1,3", options="header"]
 |===
 |`_time` |`eventID` |`userIdentity.userName` |`requestParameters.bucketName` |`grantee`
-|13:01:46 |`ab45689d-69cd-41e7-8705-5350402cf7ac` |`bstoll` |`frothlywebcode` |`LogDelivery` と `global/AllUsers`
-|13:57:54 |`9a33d8df-1e16-4d58-b36d-8e80ce68f8a3` |`bstoll` |`frothlywebcode` |`LogDelivery` のみ
+|13:01:46 |`ab45689d-69cd-41e7-8705-5350402cf7ac` |`bstoll` |`frothlywebcode` |`.../s3/LogDelivery` `.../global/AllUsers`
+|13:57:54 |`9a33d8df-1e16-4d58-b36d-8e80ce68f8a3` |`bstoll` |`frothlywebcode` |`.../s3/LogDelivery`
 |===
+
+`grantee` の値は `+http://acs.amazonaws.com/groups/global/AllUsers+` のような URI で，表では先頭を省略している．
 
 13:01:46 の呼び出しで `AllUsers` に `READ` と `WRITE` が付与され，13:57:54 の呼び出しで元に戻されている．
 公開したのは 1 件目である．
@@ -235,6 +237,8 @@ index=botsv3 sourcetype=aws:s3:accesslogs frothlywebcode REST.PUT.OBJECT *.txt
 | table _raw
 ----
 
+結果の `_raw` に記録された時刻が，公開されていた時間帯に入っているかを確かめる．
+
 ----
 ... frothlywebcode [20/Aug/2018:13:02:44 +0000] 52.66.146.128 - ... REST.PUT.OBJECT OPEN_BUCKET_PLEASE_FIX.txt "PUT /OPEN_BUCKET_PLEASE_FIX.txt HTTP/1.1" 200 ...
 ----
@@ -298,7 +302,7 @@ ____
 
 .方針
 2110 で分かるとおり，マイニングをしていた端末は `BSTOLL-L` である．
-この端末のプロセスごとの CPU 使用率（`PerfmonMk:Process` の `%_Processor_Time`）が 100% に達したプロセスを，最初の時刻順に並べる．
+この端末のプロセスごとの CPU 使用率（`PerfmonMk:Process` の `%_Processor_Time`）が 100% に達したプロセスを，最初に 100% に達した時刻の順に並べる．
 
 [source,spl]
 ----
@@ -318,7 +322,7 @@ index=botsv3 host=BSTOLL-L sourcetype=PerfmonMk:Process instance!=Idle instance!
 |`MsMpEng` |2018-08-20 14:04:31 |1
 |===
 
-2110 で見る Coinhive への DNS 問い合わせは 13:27〜13:39 に集中しており，CPU 使用率の上昇（13:37〜）はこの直後である．
+2110 で見る Coinhive への DNS 問い合わせは 13:27〜13:39 に集中しており，この時間帯の中で CPU 使用率が上昇している（13:37〜）．
 9:36 の `MicrosoftEdgeCP#2` は 1 回だけの一時的な負荷で，マイニングとは関係がない．
 マイニングによって最初に 100% に達したのは `chrome#5` である．
 
@@ -520,7 +524,7 @@ index=botsv3 sourcetype=aws:cloudtrail eventSource=iam.amazonaws.com errorCode=*
 これが GitHub に流出したキーで，第三者がユーザーやキーの作成を試みた跡である．
 
 TIP: キーの流出は，メールの記録（`ms:o365:reporting:messagetrace`）にある GitGuardian からの通知
-「[FrothlyBeers/BrewingIOT] Aws apikey exposed on GitHub」からも分かる．
+`[FrothlyBeers/BrewingIOT] Aws apikey exposed on GitHub` からも分かる．
 
 .答え
 [%collapsible.answer]

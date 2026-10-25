@@ -144,7 +144,7 @@ index=botsv2 host=MACLORY-AIR13 sourcetype=osquery_results "Frothly_marketing_ca
 |===
 
 `_time`（21:50:43）は osquery がイベントを出力した時刻で，実際のファイル操作より遅れている．
-ファイル操作の時刻はイベントの中の `columns.time`（イベント発生時刻）や `columns.ctime`（ファイルの変更時刻）にある．
+ファイル操作の時刻はイベントの中の `columns.time`（イベント発生時刻）や `columns.ctime`（ファイルの状態変更時刻）にある．
 UNIX 時刻を UTC に直すと 21:50:23 / 21:50:22 で，PDT（UTC−7）では 14:50:23 / 14:50:22 になる．
 
 [source,spl]
@@ -236,7 +236,7 @@ index=botsv2 sourcetype=stream:dns src_ip=10.0.4.2 ("*duckdns.org" OR "*hopto.or
 |`poliahu.crabdance.com` |38 |2017-08-18 22:32:10 |2017-08-29 10:27:59
 |===
 
-`eidk.hopto.org` と `eidk.duckdns.org` は，同じ名前（`eidk`）で別のサービスを使い，約 80 秒ごとに交互に問い合わせている．
+`eidk.hopto.org` と `eidk.duckdns.org` は，同じ名前（`eidk`）で別のサービスを使い，数十秒おきに交互に問い合わせている．
 これはマルウェアの定期的な通信（ビーコン）の特徴である．
 この時間帯は，1308 で分かるマルウェアの出現（18:19）の直後でもある．
 
@@ -297,7 +297,7 @@ index=botsv2 host=kutekitten sourcetype=osquery_results name=*file_events* earli
 | eval first=strftime(first, "%T")
 ----
 
-18:18:10 に `vendor_id=058f`（表示名は `Generic`，`Mass Storage`）の USB デバイスが接続され，
+18:18:10 に `vendor_id=058f`（`vendor` は `Generic`，`model` は `Mass Storage`）の USB デバイスが接続され，
 直後の 18:19:07 に `Downloads/Important_HR_INFO_for_mkraeusen` が作られている．
 
 `vendor` の値は汎用の「`Generic`」なので，USB の **ベンダー ID** からメーカーを調べる．

@@ -66,7 +66,7 @@ index=botsv3 sourcetype=ms:o365:management Operation=FileUploaded *.lnk
 ----
 
 09:57:33 に `bgist@froth.ly` のアカウントで `BRUCE BIRTHDAY HAPPY HOUR PICS.lnk` がアップロードされている．
-User-Agent の `ko-KP`（北朝鮮の韓国語）と `NaenaraBrowser`（北朝鮮製のブラウザ）から，
+User-Agent の `ko-KP`（朝鮮語・北朝鮮）と `NaenaraBrowser`（北朝鮮製のブラウザ）から，
 本人ではなく攻撃者がアカウントを使ってアップロードしたと考えられる．
 
 TIP: Symantec はこのファイルを `Backdoor.PsEmpire` として検知している．
@@ -90,7 +90,7 @@ ____
 
 .方針
 問題の「マルウェア」は，`bgist` のメールに添付されていたマクロ付き Excel（`W97M.Empstage`）である．
-このファイルの検知記録と，ファイルを作成したプロセスを Sysmon で調べる．
+Symantec の検知記録と，Sysmon のファイル作成記録を調べる．
 
 まず，Symantec による検知を探す．
 
@@ -168,7 +168,7 @@ index=botsv3 host=hoth sourcetype=osquery:results useradd
 
 [cols="4,1", options="header"]
 |===
-|`cmd` |`uid`
+|`cmd`（引用符を除いて示す） |`uid`
 |`useradd -ou tomcat7 -p davidverve.com 0 -g 0 -M -N -r -s /bin/bash` |111
 |`useradd -ou tomcat7 -p ilovedavidverve 0 -g 0 -M -N -r -s /bin/bash` |**0**
 |===
@@ -280,7 +280,7 @@ index=botsv3 host=FYODOR-L sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Op
 "C:\windows\temp\hdoor.exe" -hbs 192.168.9.1-192.168.9.50 /b /m /n
 ----
 
-`C:\Windows\Temp\hdoor.exe` が `192.168.9.1〜192.168.9.50` を走査している．
+`C:\Windows\Temp\hdoor.exe` が `192.168.9.1`〜`192.168.9.50` を走査している．
 `MD5` フィールド（または `Hashes` の `MD5=` の部分）を答える．
 
 TIP: 見当がつかないときは，`stats count values(CommandLine) by Image` で端末上の実行ファイルを一覧にし，
@@ -353,7 +353,7 @@ index=botsv3 host=FYODOR-L sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Op
 Sysmon で 3333 番への接続が記録された 10:47:06 の約 35 秒後（10:47:41）に，PowerShell が `C:\Windows\Temp\unziped\lsof-master\` の下に
 `iexeplorer.exe` などを作っている．
 なお `stream:http` では応答の完了時刻が記録されるため，`logos.png` の取得は 10:47:16 と表示される．
-「unziped」というフォルダー名から，画像ファイルに見せかけた `logos.png` の実体はツールを詰めたアーカイブだったと推定できる．
+`unziped` というフォルダー名から，画像ファイルに見せかけた `logos.png` の実体はツールを詰めたアーカイブだったと推定できる．
 
 .答え
 [%collapsible.answer]
@@ -419,6 +419,8 @@ index=botsv3 sourcetype=stream:http uri_path=/frothlyinventory/integration/saveG
 [%collapsible.answer]
 ====
 `colonel,definitelydontinvestigatethisfile.sh`
+
+（順序を逆にした `definitelydontinvestigatethisfile.sh,colonel` も正解として受け付けられる）
 ====
 
 [[q2312]]
@@ -488,9 +490,9 @@ index=botsv3 sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational Even
 [cols="1,3,1,1", options="header"]
 |===
 |`host` |`Image` |`DestinationPort` |`count`
-|`ABUNGST-L` |`powershell.exe` |443 |1,070
-|`FYODOR-L` |`powershell.exe` |443 |3,849
-|`FYODOR-L` |`powershell.exe` |3333 |1
+|`ABUNGST-L` |`...\powershell.exe` |443 |1,070
+|`FYODOR-L` |`...\powershell.exe` |443 |3,849
+|`FYODOR-L` |`...\powershell.exe` |3333 |1
 |===
 
 `ABUNGST-L` と `FYODOR-L` の PowerShell が継続的に C&C と通信している．
@@ -502,4 +504,6 @@ NOTE: `BSTOLL-L` でもエンコードされた PowerShell が実行されてい
 [%collapsible.answer]
 ====
 `ABUNGST-L,FYODOR-L`
+
+（順序を逆にした `FYODOR-L,ABUNGST-L` も正解として受け付けられる）
 ====

@@ -198,7 +198,7 @@ ____
 配点：15 点
 
 .方針
-VBScript は，Word のマクロが起動した `cmd.exe` のコマンドラインの中で 1 行ずつ書き出されている．
+VBScript は，Word のマクロが起動した `cmd.exe` のコマンドラインに埋め込まれており，そこから 1 行ずつ `.vbs` ファイルに書き出される．
 そのため，端末で最も長いコマンドラインを探すと見つかる．
 
 [source,spl]
@@ -276,7 +276,7 @@ index=botsv1 host=we8105desk sourcetype=winregistry friendlyname
 
 キーのパスに `usbstor#disk&ven_generic&prod_flash_disk` があり，値（`data`）は `MIRANDA_PRI` である．
 
-NOTE: 405 で Word が開いたファイルは `D:\Miranda_Tate_unveiled.dotm` だった．
+NOTE: 冒頭の感染の流れのとおり，Word で開かれたファイルは `D:\Miranda_Tate_unveiled.dotm` だった．
 `D:` はこの USB メモリであり，感染は USB メモリ上のマクロ付き文書から始まったことが分かる．
 
 .答え
@@ -399,13 +399,17 @@ index=botsv1 host=we8105desk sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/
 | table _time ProcessId Image ParentProcessId ParentImage CommandLine
 ----
 
-[cols="1,1,2,1,2", options="header"]
+パスを省略して示すと次のとおり．
+
+[cols="1,1,2,1,2,2", options="header"]
 |===
-|`_time` |`ProcessId` |`Image` |`ParentProcessId` |`CommandLine`
-|16:48:21 |`1476` |`cmd.exe` |**`3968`**（`wscript.exe`） |`cmd.exe /C START "" "...\121214.tmp"`
-|16:48:21 |`2948` |`121214.tmp` |`1476`（`cmd.exe`） |`"...\121214.tmp"`
-|16:48:29 |`3828` |`121214.tmp` |`2948` |（自分自身を再起動）
+|`_time` |`ProcessId` |`Image` |`ParentProcessId` |`ParentImage` |`CommandLine`
+|16:48:21 |`1476` |`cmd.exe` |**`3968`** |`wscript.exe` |`cmd.exe /C START "" "...\121214.tmp"`
+|16:48:21 |`2948` |`121214.tmp` |`1476` |`cmd.exe` |`"...\121214.tmp"`
+|16:48:29 |`3828` |`121214.tmp` |`2948` |`121214.tmp` |（省略）
 |===
+
+3 行目は `121214.tmp` が自分自身を再起動したものである．
 
 VBScript（`wscript.exe`，PID 3968）は `cmd.exe /C START` で `121214.tmp` を起動している．
 この「最初の起動」のイベント（`cmd.exe` のプロセス生成）の `ParentProcessId` は 3968 である．

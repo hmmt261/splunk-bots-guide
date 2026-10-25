@@ -449,17 +449,18 @@ index=botsv1 sourcetype=stream:http dest_ip=192.168.250.70 http_method=POST form
 | eventstats range(_time) as diff
 ----
 
-[cols="2,1,2", options="header"]
+[cols="2,1,3,1", options="header"]
 |===
-|`_time` |`src_ip` |`http_user_agent`
-|21:46:33.689 |`23.22.63.114` |`Python-urllib/2.7`（総当たりで正解）
-|21:48:05.858 |`40.80.148.42` |ブラウザ（Trident）でログイン
+|`_time` |`src_ip` |`http_user_agent` |`diff`
+|21:46:33.689 |`23.22.63.114` |`Python-urllib/2.7` |92.169084
+|21:48:05.858 |`40.80.148.42` |`Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; rv:11.0) like Gecko` |92.169084
 |===
 
+1 件目は総当たりのスクリプトが正解したとき，2 件目は攻撃者がブラウザでログインしたときのリクエストである．
 差は 92.169084 秒なので，小数第 2 位に丸めて 92.17 となる．
 
 WARNING: Stream のイベントには `_time` のほかに，リクエスト開始時刻の `timestamp` と終了時刻の `endtime` がある．
-ある writeup はこれらの組み合わせや，ログイン直後の管理画面表示までの時間を計算して不正解を重ねた．
+これらの組み合わせや，ログイン直後の管理画面表示までの時間を計算すると不正解になる．
 この問題は 2 つのイベントの `_time` の差が期待されている．
 
 .答え

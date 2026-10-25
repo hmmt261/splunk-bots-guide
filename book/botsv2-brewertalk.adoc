@@ -319,7 +319,7 @@ URL エンコードされたスクリプトが埋め込まれている．デコ�
 TIP: `| eval q=urldecode(uri_query)` を付けるとデコードした状態で読める．
 単に `"document.cookie"` で検索すると，EC サイトの JavaScript ファイル（`jquery.cookie.js` など）が大量にヒットして見つけにくい．
 
-TIP: Kevin の端末から通常と異なるポートへの通信を探す方法もある．
+TIP: Kevin の端末（`10.0.2.109`，下記のリクエストの送信元）から通常と異なるポートへの通信を探す方法もある．
 `index=botsv2 sourcetype=stream:http src_ip=10.0.2.109 NOT dest_port IN (80,443) | stats count by dest_ip dest_port uri_path`
 
 送り先の `/microsoftuserfeedbackservice` へのリクエストを見る．
