@@ -115,13 +115,14 @@ ____
 .方針
 Web サーバーを特定してから，構成情報（`hardware`）の CPU の型番を読む．
 
-Web サーバーのアクセスログ（`access_combined`）を出しているのは `gacrux.*` という名前のホスト群である．
-
 [source,spl]
 ----
 index=botsv3 sourcetype=access_combined
 | stats count by host
 ----
+
+Web サーバーのアクセスログ（`access_combined`）を出しているのは，`gacrux.*` という名前のホスト群と `hoth` である．
+このうち構成情報（`hardware`）があるのは `gacrux.*` だけなので，そちらを調べる．
 
 [source,spl]
 ----
@@ -359,7 +360,7 @@ index=botsv3 sourcetype=stream:dns coinhive
 | stats count by src_ip query{}
 ----
 
-`ws001`〜`ws019.coinhive.com` を問い合わせているのは `192.168.247.131` だけである．
+`ws001.coinhive.com` など 5 つの `wsNNN.coinhive.com` を問い合わせているのは `192.168.247.131` だけである．
 このアドレスの端末は Sysmon で確かめられる．
 
 [source,spl]
@@ -407,7 +408,7 @@ index=botsv3 sourcetype=symantec:ep:security:file JSCoinminer
 
 Splunk の検索結果は新しい順に並ぶので，「最初に見られた（first seen）」イベントは結果の **最後** にある．
 結果の最後の値を返す `last(sid)` が `30358` である．
-実際に結果を古い順に並べ直すと，最も古いイベントは `30358` である．
+実際に結果を古い順に並べ直すと，最も古い時刻（13:37:40）には `30358` と `30356` の 2 件があり，先頭に来るのは `30358` である．
 
 [source,spl]
 ----
@@ -519,6 +520,7 @@ index=botsv3 sourcetype=aws:cloudtrail eventSource=iam.amazonaws.com errorCode=*
 |`userIdentity.accessKeyId` |`userIdentity.userName` |`errors` |`api`
 |`AKIAJOGCDXJ5NW5PXUPA` |`web_admin` |5 |`CreateAccessKey CreateUser DeleteAccessKey GetUser ListAccessKeys`
 |`AKIAIGKL572SFDPOKLHA` |`splunk_access` |1 |`GetAccountPasswordPolicy`
+|`ASIAZB6TMXZ7MJUJJK6X` |`bstoll` |1 |`GetAccountPasswordPolicy`
 |===
 
 `web_admin` のキー `AKIAJOGCDXJ5NW5PXUPA` が，5 種類の IAM 操作をすべて権限不足で拒否されている．

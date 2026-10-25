@@ -33,13 +33,14 @@ index=botsv3 sourcetype=aws:cloudtrail eventName=RunInstances userIdentity.userN
 |===
 |`_time` |`awsRegion` |`ami` |`type` |`errorCode`
 |09:16:22 |`us-east-1` |`ami-41e0b93b` |`x1.32xlarge` |`Client.InstanceLimitExceeded`
-|09:16:23 |`us-east-1` |`ami-67973709` |`x1.32xlarge` |`Client.InstanceLimitExceeded`
-|09:16:24 |`us-east-1` |`ami-1157157d` |`x1.32xlarge` |`Client.InstanceLimitExceeded`
+|09:16:23 |`ap-northeast-2` |`ami-67973709` |`x1.32xlarge` |`Client.InstanceLimitExceeded`
+|09:16:24 |`sa-east-1` |`ami-1157157d` |`x1.32xlarge` |`Client.InstanceLimitExceeded`
 5+|（以下，09:28 頃まで続く）
 |===
 
-攻撃者は大型のインスタンス（`x1.32xlarge` など）を，AMI とインスタンスタイプを変えながら 1 秒おきに起動しようとしている．
-いずれも上限超過で失敗している（マイニング用のインスタンスを立てようとしたと考えられる）．
+攻撃者は大型のインスタンス（`x1.32xlarge` など）を，リージョンとインスタンスタイプを変えながら 1 秒おきに起動しようとしている．
+AMI の ID はリージョンごとに異なるので，リージョンが変わると AMI も変わる．
+09:28 頃までの 576 回はすべて失敗しており，約半数が上限超過（`Client.InstanceLimitExceeded`）である（マイニング用のインスタンスを立てようとしたと考えられる）．
 最初の試行の AMI は `us-east-1` の `ami-41e0b93b` である．
 
 AMI がどの OS かはログには書かれていないので，外部の情報で調べる．

@@ -24,17 +24,21 @@
 |===
 |`sourcetype` |内容 |主に使う版
 
-|`stream:http` / `stream:dns` / `stream:smtp` / `stream:smb` / `stream:ftp` / `stream:tcp`
-|Splunk Stream が取得したネットワーク通信．HTTP のヘッダや本文，DNS の問い合わせ，メール本文まで入っている
-|v1〜v3
+|`stream:http` / `stream:dns` / `stream:smb` / `stream:tcp`
+|Splunk Stream が取得したネットワーク通信．HTTP のヘッダや本文，DNS の問い合わせまで入っている
+|v1 ~ v3
+
+|`stream:smtp` / `stream:ftp`
+|Splunk Stream が取得したメール（本文を含む）と FTP の通信（`stream:ftp` は v2 のみ）
+|v2, v3
 
 |`XmlWinEventLog:Microsoft-Windows-Sysmon/Operational`
 |Sysmon．`EventCode` 1 = プロセス生成，2 = ファイル作成時刻の変更，3 = ネットワーク接続，11 = ファイル作成
-|v1〜v3
+|v1 ~ v3
 
 |`WinEventLog:Security`
 |Windows のセキュリティログ．4688 = プロセス生成，4720 = ユーザー作成，5145 = 共有フォルダーへのアクセス
-|v1〜v3
+|v1 ~ v3
 
 |`suricata` / `fgt_utm` / `pan:traffic`
 |IDS（Suricata），FortiGate，Palo Alto のログ
@@ -42,7 +46,7 @@
 
 |`iis` / `access_combined`
 |Web サーバーのアクセスログ
-|v1〜v3
+|v1 ~ v3
 
 |`winregistry`
 |レジストリの変更

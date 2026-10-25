@@ -22,7 +22,7 @@ SOC アナリストとして，攻撃者がどのようにサイトを調査し�
 |21:36 頃〜
 |`40.80.148.42` から Acunetix による脆弱性スキャン
 
-|21:45:21〜21:46:33
+|21:45:21〜21:46:51
 |`23.22.63.114` から Joomla 管理画面へのパスワード総当たり（412 回）
 
 |21:48:05
@@ -326,7 +326,7 @@ index=botsv1 sourcetype=suricata fileinfo.filename=*.exe dest_ip=192.168.250.70
 | stats count by fileinfo.filename src_ip
 ----
 
-WARNING: `shtml.exe` や `cmd.exe` もヒットするが，これらはスキャナが存在を確かめようとした URL であり，
+WARNING: `/_vti_bin/shtml.exe` もヒットするが，これはスキャナが存在を確かめようとした URL であり，
 アップロードされたファイルではない．
 
 .答え

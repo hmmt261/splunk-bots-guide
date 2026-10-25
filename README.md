@@ -1,4 +1,4 @@
-# Splunk BOTS v1〜v3 解き方ガイド
+# Splunk BOTS v1 ~ v3 解き方ガイド
 
 Splunk 社のセキュリティ演習データセット **Boss of the SOC (BOTS)** v1・v2・v3 を使った演習（全 98 問）の
 解き方を解説するガイドです。

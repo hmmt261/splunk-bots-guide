@@ -404,7 +404,7 @@ index=botsv1 host=we8105desk sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/
 | table _time ProcessId Image ParentProcessId ParentImage CommandLine
 ----
 
-パスを省略して示すと次のとおり．
+パスを省略し，最初の 3 行を抜粋して示す（同じ時刻の 2 行は親から順に並べた）．
 
 [cols="1,1,2,1,2,2", options="header"]
 |===

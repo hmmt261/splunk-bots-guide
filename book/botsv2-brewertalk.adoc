@@ -4,11 +4,11 @@
 === シナリオ
 
 Frothly が運営するビール愛好家向けフォーラム `www.brewertalk.com`（MyBB）が攻撃を受けた．
-攻撃者は脆弱性スキャンの後，SQL インジェクションでユーザー情報を盗み，
-さらに XSS とスピアフィッシングで管理者権限のユーザーを作成した．
+攻撃者は脆弱性スキャンの後，スピアフィッシングと XSS で管理者権限のユーザーを作成し，
+さらに SQL インジェクションでユーザー情報を盗んだ．
 
 この章では問題 1201〜1209 を扱う．
-主に使うデータは `stream:http`（フォーラムへの HTTP 通信）と `stream:dns`，`access_combined`（Web サーバーのアクセスログ）である．
+主に使うデータは `stream:http`（フォーラムへの HTTP 通信），`stream:dns`，`access_combined`（Web サーバーのアクセスログ）である．
 
 .攻撃の全体像（この章で明らかになること）
 [cols="1,4", options="header"]
@@ -361,6 +361,8 @@ MyBB の管理画面でユーザーを作るリクエストには，CSRF 対策�
 index=botsv2 sourcetype=stream:http form_data=*my_post_key* form_data="*usergroup=4*"
 | rex field=form_data "my_post_key=(?<key>[^&]+)"
 | rex field=form_data "username=(?<user>[^&]+)"
+| dedup _time src_ip user key
+| sort _time
 | table _time src_ip user key
 ----
 

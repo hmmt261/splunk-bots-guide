@@ -16,7 +16,7 @@ Frothly の社員 Mallory Kraeusen が使う 2 台の Mac で異常が報告さ�
 * `pan:traffic`：Palo Alto のアプリケーション識別結果（`app`）
 * `stream:dns`：DNS の問い合わせ
 
-NOTE: Palo Alto のログ（`src_user=mkraeusen`）では，`MACLORY-AIR13` は `10.0.4.4`，`kutekitten` は `10.0.4.2` として記録されている．
+NOTE: Palo Alto のログ（`src_user=mkraeusen`）では，`MACLORY-AIR13` は `10.0.4.4`，`kutekitten` は `10.0.4.2` として記録されている（ほかに `10.0.4.5` もあるが，本書の問題では使わない）．
 端末自身のインターフェース情報に出てくる `192.168.x.x` とは異なるので，ネットワークのログを調べるときはこちらを使う．
 
 [[q1301]]
@@ -71,7 +71,7 @@ index=botsv2 host=MACLORY-AIR13 sourcetype=osquery_results GoT
 | stats count by columns.target_path
 ----
 
-`GoT.S07E02.BOTS.BOTS.BOTS.mkv`（とその `.torrent`）がある．
+`GoT.S07E02.BOTS.BOTS.BOTS.mkv` と，その torrent ファイル `GoT.S7E2.BOTS.BOTS.BOTS.mkv.torrent` がある．
 「Game of Thrones」のシーズン 7 第 2 話で，HBO のエピソードタイトルは「Stormborn」である．
 
 NOTE: ファイル名からタイトルへの対応はログには書かれていない．エピソード一覧などの一般的な情報で確認する．
@@ -242,7 +242,7 @@ index=botsv2 sourcetype=stream:dns src_ip=10.0.4.2 ("*duckdns.org" OR "*hopto.or
 この時間帯は，1308 で分かるマルウェアの出現（18:19）の直後でもある．
 
 NOTE: `poliahu.crabdance.com` は件数こそ多いが，2 週間後から始まっておりマルウェアの出現と時間的なつながりがない．
-`hh4de2.hopto.org` は 1 回だけで，定期的な通信のパターンではない．
+`hh4de2.hopto.org` は 18:22:16 の 1 回だけ（イベントは 2 件）で，定期的な通信のパターンではない．
 
 .答え
 [%collapsible.answer]
@@ -300,6 +300,7 @@ index=botsv2 host=kutekitten sourcetype=osquery_results name=*file_events* earli
 
 18:18:10 に `vendor_id=058f`（`vendor` は `Generic`，`model` は `Mass Storage`）の USB デバイスが接続され，
 直後の 18:19:07 に `Downloads/Important_HR_INFO_for_mkraeusen` が作られている．
+もう 1 台の USB デバイス（`vendor_id=13fe`）は 18:18:10 に取り外されており，ファイルが作られたときには接続されていない．
 
 `vendor` の値は汎用の「`Generic`」なので，USB の **ベンダー ID** からメーカーを調べる．
 USB ID の公開一覧（Linux の `usb.ids` など）では，`058f` は Alcor Micro Corp. である．

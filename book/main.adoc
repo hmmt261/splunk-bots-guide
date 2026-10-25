@@ -1,6 +1,4 @@
-= Splunk BOTS v1〜v3 解き方ガイド
-BOTS Lab
-v1.0, 2026-10-25
+= Splunk BOTS v1 ~ v3 解き方ガイド
 :toc: left
 :toclevels: 2
 :toc-title: 目次

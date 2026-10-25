@@ -30,8 +30,11 @@
 |10:08
 |`FYODOR-L` にローカルユーザー `svcvnc` が作られる
 
+|10:42
+|`FYODOR-L` に `hdoor.exe` が置かれる
+
 |10:47
-|`FYODOR-L` に `hdoor.exe` が置かれ，`45.77.53.176:3333` から `logos.png` がダウンロードされる
+|`FYODOR-L` が `45.77.53.176:3333` から `logos.png` をダウンロードする
 
 |11:05〜
 |`hoth` の Struts アプリ（`saveGangster.action`）に OGNL インジェクションでコマンドが送られる
@@ -111,6 +114,7 @@ Security Risk Found! W97M.Empstage in File: C:\Users\BruceGist\AppData\Local\Pac
 [source,spl]
 ----
 index=botsv3 host=BGIST-L sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=11 TargetFilename=*.xlsm
+| sort _time
 | table _time Image TargetFilename
 ----
 
@@ -491,8 +495,8 @@ index=botsv3 sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational Even
 |===
 |`host` |`Image` |`DestinationPort` |`count`
 |`ABUNGST-L` |`...\powershell.exe` |443 |1,070
-|`FYODOR-L` |`...\powershell.exe` |443 |3,849
 |`FYODOR-L` |`...\powershell.exe` |3333 |1
+|`FYODOR-L` |`...\powershell.exe` |443 |3,849
 |===
 
 `ABUNGST-L` と `FYODOR-L` の PowerShell が継続的に C&C と通信している．
