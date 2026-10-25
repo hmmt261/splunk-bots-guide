@@ -125,7 +125,7 @@ index=botsv3 sourcetype=access_combined
 
 [source,spl]
 ----
-index=botsv3 sourcetype=hardware
+index=botsv3 sourcetype=hardware host=gacrux*
 | table host _raw
 ----
 
@@ -164,12 +164,12 @@ index=botsv3 sourcetype=aws:cloudtrail eventName=PutBucketAcl
 
 [cols="1,3,1,1,3", options="header"]
 |===
-|`_time` |`eventID` |`userName` |`bucketName` |`grantee`
+|`_time` |`eventID` |`userIdentity.userName` |`requestParameters.bucketName` |`grantee`
 |13:01:46 |`ab45689d-69cd-41e7-8705-5350402cf7ac` |`bstoll` |`frothlywebcode` |`LogDelivery` と `global/AllUsers`
 |13:57:54 |`9a33d8df-1e16-4d58-b36d-8e80ce68f8a3` |`bstoll` |`frothlywebcode` |`LogDelivery` のみ
 |===
 
-13:01:46 の呼び出しで `AllUsers` に READ と WRITE が付与され，13:57:54 の呼び出しで元に戻されている．
+13:01:46 の呼び出しで `AllUsers` に `READ` と `WRITE` が付与され，13:57:54 の呼び出しで元に戻されている．
 公開したのは 1 件目である．
 
 .答え
@@ -397,7 +397,7 @@ index=botsv3 sourcetype=symantec:ep:security:file JSCoinminer
 |30356 |30358 |30356 |30358
 |===
 
-検知されたシグネチャは `30356`（JSCoinminer Download 6）と `30358`（JSCoinminer Download 8）の 2 種類で，
+検知されたシグネチャは `30356`（`JSCoinminer Download 6`）と `30358`（`JSCoinminer Download 8`）の 2 種類で，
 多くのイベントで両者が同じ時刻に記録されている．
 
 Splunk の検索結果は新しい順に並ぶので，「最初に見られた（first seen）」イベントは結果の **最後** にある．
@@ -463,7 +463,7 @@ ____
 配点：15 点
 
 .方針
-Symantec がコインマイナーの通信を「blocked」した端末を探す．
+Symantec がコインマイナーの通信を `blocked` した端末を探す．
 ログの 3 列目がコンピューター名である．
 
 [source,spl]
@@ -511,7 +511,7 @@ index=botsv3 sourcetype=aws:cloudtrail eventSource=iam.amazonaws.com errorCode=*
 
 [cols="2,1,1,3", options="header"]
 |===
-|`accessKeyId` |`userName` |`errors` |`api`
+|`userIdentity.accessKeyId` |`userIdentity.userName` |`errors` |`api`
 |`AKIAJOGCDXJ5NW5PXUPA` |`web_admin` |5 |`CreateAccessKey CreateUser DeleteAccessKey GetUser ListAccessKeys`
 |`AKIAIGKL572SFDPOKLHA` |`splunk_access` |1 |`GetAccountPasswordPolicy`
 |===

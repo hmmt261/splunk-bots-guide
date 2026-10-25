@@ -98,9 +98,9 @@ index=botsv1 sourcetype=suricata cerber
 [cols="1,3,1", options="header"]
 |===
 |`alert.signature_id` |`alert.signature` |`count`
-|2816763 |`ETPRO TROJAN Ransomware/Cerber Checkin 2` |1
-|2816764 |`ETPRO TROJAN Ransomware/Cerber Checkin Error ICMP Response` |2
-|2820156 |`ETPRO TROJAN Ransomware/Cerber Onion Domain Lookup` |2
+|`2816763` |`ETPRO TROJAN Ransomware/Cerber Checkin 2` |1
+|`2816764` |`ETPRO TROJAN Ransomware/Cerber Checkin Error ICMP Response` |2
+|`2820156` |`ETPRO TROJAN Ransomware/Cerber Onion Domain Lookup` |2
 |===
 
 WARNING: `*erber*` のようなワイルドカードで検索すると `kerberos` にもヒットする．
@@ -122,7 +122,7 @@ ____
 配点：15 点
 
 .方針
-暗号化が終わると，Cerber は身代金の支払いページ（Tor の .onion へのゲートウェイ）を表示する．
+暗号化が終わると，Cerber は身代金の支払いページ（Tor の `.onion` へのゲートウェイ）を表示する．
 端末の DNS の問い合わせから，`cerber` を含むドメインを探す．
 
 [source,spl]
@@ -133,7 +133,7 @@ index=botsv1 sourcetype=stream:dns src_ip=192.168.250.100 "query{}"=*cerber*
 ----
 
 17:15:12 に `cerberhhyed5frqa.xmfir0.win` を問い合わせている．
-402 の Suricata のアラート「Cerber Onion Domain Lookup」も同じ時刻に出ている．
+402 の Suricata のアラート `ETPRO TROJAN Ransomware/Cerber Onion Domain Lookup` も同じ時刻に出ている．
 
 TIP: DNS の問い合わせ名は配列フィールド `query{}` に入っている．
 `query` や `name` で検索して何も出ないときは `{}` を付けること（<<sec_pitfalls>>）．
@@ -211,7 +211,7 @@ index=botsv1 host=we8105desk sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/
 ----
 
 16:43:21 に `WINWORD.EXE` が起動した `cmd.exe` のコマンドラインが 4,490 文字ある．
-先頭は次のようになっている．
+先頭は次のようになっている（XML のエスケープを戻して示す）．
 
 ----
 cmd.exe /V /C set "GSI=%APPDATA%\%RANDOM%.vbs" && (for %i in ("DIm RWRL" "FuNCtioN GNbiPp(Pt5SZ1)" ...
@@ -244,7 +244,7 @@ ____
 405 で見つけた `cmd.exe` の `CommandLine` は 4,490 文字である．
 このコマンドは子プロセス `wscript.exe` の `ParentCommandLine` にも同じ文字列で入っており，こちらも 4,490 文字である．
 
-WARNING: Sysmon の XML では `>` や `&` が `+&gt;+` `+&amp;+` とエスケープされている．
+WARNING: Sysmon の XML では `>` や `&` が `+&gt;+` や `+&amp;+` にエスケープされている．
 `_raw` から自分で取り出してエスケープを戻すと 4,426 文字になり，答えと合わない．
 問題文のとおり「Splunk のフィールド」の長さを `len()` で測ること．
 
@@ -402,9 +402,9 @@ index=botsv1 host=we8105desk sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/
 [cols="1,1,2,1,2", options="header"]
 |===
 |`_time` |`ProcessId` |`Image` |`ParentProcessId` |`CommandLine`
-|16:48:21 |1476 |`cmd.exe` |**3968**（`wscript.exe`） |`cmd.exe /C START "" "...\121214.tmp"`
-|16:48:21 |2948 |`121214.tmp` |1476（`cmd.exe`） |`"...\121214.tmp"`
-|16:48:29 |3828 |`121214.tmp` |2948 |（自分自身を再起動）
+|16:48:21 |`1476` |`cmd.exe` |**`3968`**（`wscript.exe`） |`cmd.exe /C START "" "...\121214.tmp"`
+|16:48:21 |`2948` |`121214.tmp` |`1476`（`cmd.exe`） |`"...\121214.tmp"`
+|16:48:29 |`3828` |`121214.tmp` |`2948` |（自分自身を再起動）
 |===
 
 VBScript（`wscript.exe`，PID 3968）は `cmd.exe /C START` で `121214.tmp` を起動している．

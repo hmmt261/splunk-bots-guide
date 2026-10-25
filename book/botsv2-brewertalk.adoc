@@ -13,7 +13,7 @@ Frothly が運営するビール愛好家向けフォーラム `www.brewertalk.c
 .攻撃の全体像（この章で明らかになること）
 [cols="1,4", options="header"]
 |===
-|時刻（UTC, 2017 年 8 月） |出来事
+|時刻（UTC，2017 年 8 月） |出来事
 
 |11 日 14:40〜14:46
 |`45.77.65.211` から w3af による脆弱性スキャン
@@ -194,7 +194,7 @@ index=botsv2 sourcetype=stream:http src_ip=45.77.65.211 uri_path=/member.php "XP
 | table _time query leak
 ----
 
-結果の冒頭は次のようになる．
+結果の一部を抜粋すると次のようになる．
 
 [cols="1,4,2", options="header"]
 |===
@@ -212,8 +212,8 @@ index=botsv2 sourcetype=stream:http src_ip=45.77.65.211 uri_path=/member.php "XP
 1 行目（`LIMIT 0,1`）のユーザー名が `frank`，メールアドレスが `frankesters47@gmail.com` なので，これが Frank Ester である．
 その salt は `gGsxysZL` である．
 
-NOTE: `updatexml()` のエラーメッセージは 32 文字までしか返さないため，32 文字のパスワードハッシュは
-`SUBSTRING(..., 1, 31)` と `SUBSTRING(..., 32, 31)` の 2 回に分けて抜き出されている．
+NOTE: `updatexml()` のエラーメッセージは 32 文字までしか返さず，先頭の `:`（`concat(0x3a, ...)` で付けたもの）が 1 文字を使う．
+そのため 32 文字のパスワードハッシュは，`SUBSTRING(..., 1, 31)` と `SUBSTRING(..., 32, 31)` の 2 回に分けて抜き出されている．
 
 .答え
 [%collapsible.answer]
@@ -241,8 +241,8 @@ MyBB のパスワードハッシュの方式に従って，よく使われるパ
 |===
 |列 |漏えいした値
 |`username` |`btun`
-|email |`btun@froth.ly`
-|salt |`tlX7cQPE`
+|`email` |`btun@froth.ly`
+|`salt` |`tlX7cQPE`
 |`password`（1〜31 文字目） |`f91904c1dd2723d5911eeba409cc0d1`
 |`password`（32 文字目） |`4`
 |===
@@ -279,7 +279,6 @@ with open("10-million-password-list-top-1000.txt") as f:
 一覧の最初の方にあるパスワードで一致する．
 
 WARNING: `md5(md5(password) + salt)` など式を取り違えると，どれだけ大きな辞書を使っても一致しない．
-ある writeup は式を誤ったまま 3 億通り以上を試して解けなかった．
 MyBB の方式は「salt と password をそれぞれ md5 してから連結し，もう一度 md5」である．
 
 IMPORTANT: ハッシュの総当たりは，演習データのように許可された対象に限って行うこと．
@@ -362,7 +361,7 @@ MyBB の管理画面でユーザーを作るリクエストには，CSRF 対策�
 index=botsv2 sourcetype=stream:http form_data=*my_post_key* form_data="*usergroup=4*"
 | rex field=form_data "my_post_key=(?<key>[^&]+)"
 | rex field=form_data "username=(?<user>[^&]+)"
-| table _time src_ip uri_path user key
+| table _time src_ip user key
 ----
 
 [cols="2,1,1,2", options="header"]
@@ -402,7 +401,7 @@ Kevin のユーザー名 `klagerfield`（小文字の L）に見せかけて，2
 
 WARNING: 画面のフォントによっては l と I の区別がつかない．
 コピー＆ペーストするか，`| eval c=substr(user, 2, 1)` のように 1 文字ずつ確かめること．
-なお演習環境の判定は大文字・小文字を区別しないため，`klagerfield` と入力しても正解にはならない（l と i は別の文字）．
+なお演習環境の判定は大文字・小文字を区別しないので `kiagerfield` でも正解になるが，l と I は別の文字なので `klagerfield` は不正解になる．
 
 .答え
 [%collapsible.answer]

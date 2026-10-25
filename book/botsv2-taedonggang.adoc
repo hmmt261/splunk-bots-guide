@@ -38,7 +38,7 @@ index=botsv2 sourcetype=stream:smtp *.zip
 [cols="2,1,1,3", options="header"]
 |===
 |`sender_email` |`subject` |`attach` |`rcpt`
-|`jsmith@urinalysis.com` |`Invoice` |`invoice.zip` |`abungstein@`，`btun@`，`fyodor@`，`klagerfield@froth.ly`
+|`jsmith@urinalysis.com` |`Invoice` |`invoice.zip` |`abungstein@froth.ly`，`btun@froth.ly`，`fyodor@froth.ly`，`klagerfield@froth.ly`
 |===
 
 .答え

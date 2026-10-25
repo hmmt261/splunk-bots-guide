@@ -49,7 +49,7 @@ AMI がどの OS かはログには書かれていないので，外部の情報
 
 `ami-41e0b93b` は Ubuntu 16.04 LTS のイメージで，そのコードネームは「Xenial Xerus」である．
 
-WARNING: 最初の試行以外の AMI（`ami-79aeae19` や `ami-af79ebc0` など）を調べて答えた writeup もあった．
+WARNING: 最初の試行以外の AMI（`ami-79aeae19` や `ami-af79ebc0` など）を調べても，同じ Ubuntu 16.04 で答えが一致することがあるが，それは偶然である．
 `sort 0 _time` で時刻順に並べ，最初の 1 件を使うこと．
 
 TIP: `hoth` など Frothly の Linux サーバーも Ubuntu 16.04 である（osquery の `build_distro=xenial`）．
@@ -88,6 +88,8 @@ index=botsv3 sourcetype=WinEventLog:Security EventCode=4688
 | eval iqr=q3-q1, uf=q3+1.5*iqr
 | table host count q1 q3 iqr uf
 ----
+
+結果を件数順に並べると次のとおり（`q1` 以降の列は全行で同じ値なので省略する）．
 
 [cols="1,1", options="header"]
 |===
@@ -208,9 +210,9 @@ OGNL 式（`${(#szgx='multipart/form-data').(#dm=@ognl.OgnlContext@DEFAULT_MEMBE
 
 `integration/saveGangster.action` は Apache Struts 2 のサンプルアプリ（Struts Showcase）にある，
 Struts 1 プラグインの機能例である．
-このアクションで入力値が OGNL 式として評価されてしまう脆弱性は S2-048 として公表されており，`CVE-2017-9791` が割り当てられている．
+このアクションで入力値が OGNL 式として評価されてしまう脆弱性は `S2-048` として公表されており，`CVE-2017-9791` が割り当てられている．
 
-WARNING: 「Struts の RCE」として有名な CVE-2017-5638（S2-045，Content-Type ヘッダへの注入）とは別物である．
+WARNING: 「Struts の RCE」として有名な `CVE-2017-5638`（`S2-045`，Content-Type ヘッダへの注入）とは別物である．
 注入箇所（フォームの `name` パラメーター）とアクション名（`saveGangster.action`）を根拠に特定すること．
 
 .答え

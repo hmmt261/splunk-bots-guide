@@ -132,7 +132,7 @@ writeup で複数のチームが引っかかった点を挙げる．
 Splunk Stream の JSON では，配列の値は `name{}`，`query{}`，`host_addr{}`，`receiver_email{}` のように
 `{}` 付きのフィールド名になる．
 `name` で検索して何も出ないときは，`name{}` を試すこと．
-`stats` で集計するときは `'query{}'` のようにシングルクォートで囲む．
+`eval` や `where` の中で使うときは `'query{}'` のようにシングルクォートで囲む（`stats ... by query{}` はそのままでよい）．
 
 ==== 長い本文は `spath` で取り出す
 
@@ -195,7 +195,7 @@ Sysmon のプロセス生成（`EventCode` 1）には，次のフィールドが
 |プロセス ID と親のプロセス ID
 
 |`Hashes`
-|実行ファイルのハッシュ（`MD5=...,SHA256=...` の形式）
+|実行ファイルのハッシュ（`SHA1=...,MD5=...,SHA256=...,IMPHASH=...` の形式）
 
 |`TargetFilename`
 |`EventCode` 2・11 の対象ファイル

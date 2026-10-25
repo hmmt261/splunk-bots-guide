@@ -56,7 +56,7 @@ index=botsv1 sourcetype=stream:http site=imreallynotbatman.com
 | sort -count
 ----
 
-`40.80.148.42` から 1 万 7 千件以上のリクエストがあり，User-Agent に `acunetix_wvs_security_test` という文字列を含むものが混ざっている．
+`40.80.148.42` からのリクエストが User-Agent ごとの行を合わせて 1 万 7 千件以上あり，User-Agent に `acunetix_wvs_security_test` という文字列を含むものが混ざっている．
 この送信元のリクエストヘッダ（`src_headers`）を見ると，製品名がはっきり書かれている．
 
 [source,spl]
@@ -490,7 +490,7 @@ index=botsv1 sourcetype=stream:http dest_ip=192.168.250.70 http_method=POST uri=
 
 試行回数・種類数ともに 412 である．
 
-NOTE: `src_ip` で絞らずに全送信元を数えると，`batman` が 2 回出てくるため試行回数は 413 になるが，種類数は 412 のままである．
+NOTE: `src_ip` で絞らずに `passwd` を含む POST（`form_data=*passwd*`）を全送信元について数えると，`batman` が 2 回出てくるため試行回数は 413 になるが，種類数は 412 のままである．
 「unique」と問われているので，回数ではなく種類数を答える．
 
 .答え

