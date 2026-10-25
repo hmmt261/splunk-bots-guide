@@ -106,7 +106,7 @@ index=botsv3 (Empstage OR xlsm) sourcetype!=*o365*
 Security Risk Found! W97M.Empstage in File: C:\Users\BruceGist\AppData\Local\Packages\microsoft.windowscommunicationsapps_8wekyb3d8bbwe\LocalState\Files\S0\3\Frothly-Brewery-Financial-Planning-FY2019-Draft[66].xlsm by: Auto-Protect scan.  Action: Cleaned by Deletion.
 ----
 
-同じファイルの作成（Sysmon の EventCode 11）を見ると，ファイルを書き込んだプロセス（`Image`）が分かる．
+同じファイルの作成（Sysmon の `EventCode` 11）を見ると，ファイルを書き込んだプロセス（`Image`）が分かる．
 
 [source,spl]
 ----
@@ -116,7 +116,7 @@ index=botsv3 host=BGIST-L sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Ope
 
 [cols="1,3,3", options="header"]
 |===
-|_time |Image |TargetFilename
+|`_time` |`Image` |`TargetFilename`
 |09:55:52 |`C:\Program Files\WindowsApps\microsoft.windowscommunicationsapps_...\HxTsr.exe` |`...\Frothly-Brewery-Financial-Planning-FY2019-Draft[66].xlsm`
 |09:55:54 |`System` |`C:\ProgramData\Symantec\...\Quarantine\AP4D3C539B.xlsm`
 |===
@@ -131,7 +131,7 @@ NOTE: 解答者 4 チームはいずれもこの問題を解けなかった．
 
 TIP: このメールの経緯は他のログでも追える．
 メールの配送記録（`ms:o365:reporting:messagetrace`）には `bgist@froth.ly` から 4 人に送られた件名「Draft Financial Plan for Brewery FY2019」があり，
-`stream:smtp` の同じメールでは，添付ファイルが「Malware Alert Text.txt」（Base64）に置き換えられている．
+`stream:smtp` の同じメールでは，添付ファイルが「`Malware Alert Text.txt`」（Base64）に置き換えられている．
 デコードすると，添付の `Frothly-Brewery-Financial-Planning-FY2019-Draft.xlsm` が W97M.Empstage として削除された旨が書かれている．
 
 WARNING: `powershell.exe`，`iexeplorer.exe`，`browser_broker.exe` などを答えて外したチームが多い．
@@ -168,7 +168,7 @@ index=botsv3 host=hoth sourcetype=osquery:results useradd
 
 [cols="4,1", options="header"]
 |===
-|cmd |uid
+|`cmd` |`uid`
 |`useradd -ou tomcat7 -p davidverve.com 0 -g 0 -M -N -r -s /bin/bash` |111
 |`useradd -ou tomcat7 -p ilovedavidverve 0 -g 0 -M -N -r -s /bin/bash` |**0**
 |===
@@ -198,7 +198,7 @@ ____
 配点：10 点
 
 .方針
-Windows のユーザー作成イベント（EventCode 4720）を探す．
+Windows のユーザー作成イベント（`EventCode` 4720）を探す．
 
 [source,spl]
 ----
@@ -361,7 +361,7 @@ index=botsv3 host=FYODOR-L sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Op
 ====
 
 [[q2310]]
-=== 2310: Linux サーバーの /tmp に送り込まれた 2 つのファイル
+=== 2310: Linux サーバーの `/tmp` に送り込まれた 2 つのファイル
 
 [quote]
 ____
@@ -387,7 +387,7 @@ index=botsv3 host=hoth sourcetype=osquery:results "/tmp/"
 
 [cols="2,1,3", options="header"]
 |===
-|path |first |由来
+|`path` |`first` |由来
 |`/tmp/colonel` |11:09:07 |**外部から送り込まれた**（Struts 経由の `echo <Base64> >> /tmp/colonel`）
 |`/tmp/backpipe` |11:13:57 |`mknod` で作った名前付きパイプ（リバースシェル用）
 |`/tmp/colonel.c` |11:13:57 |`colonel` を `base64 --decode` したもの
@@ -471,7 +471,7 @@ ____
 配点：15 点
 
 .方針
-Sysmon のネットワーク接続（EventCode 3）で，C&C サーバー `45.77.53.176` への接続を端末ごとに数える．
+Sysmon のネットワーク接続（`EventCode` 3）で，C&C サーバー `45.77.53.176` への接続を端末ごとに数える．
 
 [source,spl]
 ----
@@ -481,7 +481,7 @@ index=botsv3 sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational Even
 
 [cols="1,3,1,1", options="header"]
 |===
-|host |Image |DestinationPort |count
+|`host` |`Image` |`DestinationPort` |`count`
 |`ABUNGST-L` |`powershell.exe` |443 |1,070
 |`FYODOR-L` |`powershell.exe` |443 |3,849
 |`FYODOR-L` |`powershell.exe` |3333 |1

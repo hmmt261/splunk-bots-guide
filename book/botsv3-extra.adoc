@@ -31,14 +31,14 @@ index=botsv3 sourcetype=aws:cloudtrail eventName=RunInstances userIdentity.userN
 
 [cols="2,1,2,1,2", options="header"]
 |===
-|_time |awsRegion |ami |type |errorCode
-|09:16:22 |us-east-1 |`ami-41e0b93b` |x1.32xlarge |Client.InstanceLimitExceeded
-|09:16:23 |us-east-1 |`ami-67973709` |x1.32xlarge |Client.InstanceLimitExceeded
-|09:16:24 |us-east-1 |`ami-1157157d` |x1.32xlarge |Client.InstanceLimitExceeded
+|`_time` |`awsRegion` |`ami` |`type` |`errorCode`
+|09:16:22 |`us-east-1` |`ami-41e0b93b` |`x1.32xlarge` |`Client.InstanceLimitExceeded`
+|09:16:23 |`us-east-1` |`ami-67973709` |`x1.32xlarge` |`Client.InstanceLimitExceeded`
+|09:16:24 |`us-east-1` |`ami-1157157d` |`x1.32xlarge` |`Client.InstanceLimitExceeded`
 5+|（以下，09:28 頃まで続く）
 |===
 
-攻撃者は大型のインスタンス（x1.32xlarge など）を，AMI とインスタンスタイプを変えながら 1 秒おきに起動しようとしている．
+攻撃者は大型のインスタンス（`x1.32xlarge` など）を，AMI とインスタンスタイプを変えながら 1 秒おきに起動しようとしている．
 いずれも上限超過で失敗している（マイニング用のインスタンスを立てようとしたと考えられる）．
 最初の試行の AMI は `us-east-1` の `ami-41e0b93b` である．
 
@@ -63,7 +63,7 @@ TIP: `hoth` など Frothly の Linux サーバーも Ubuntu 16.04 である（os
 ====
 
 [[q2401]]
-=== 2401: EventCode 4688 の件数の IQR の上側フェンス
+=== 2401: `EventCode` 4688 の件数の IQR の上側フェンス
 
 [quote]
 ____
@@ -73,7 +73,7 @@ ____
 配点：15 点
 
 .方針
-Windows のプロセス生成イベント（EventCode 4688）をホストごとに数え，その件数の分布から四分位数を求める．
+Windows のプロセス生成イベント（`EventCode` 4688）をホストごとに数え，その件数の分布から四分位数を求める．
 
 * IQR（四分位範囲）＝ 第 3 四分位数（Q3） − 第 1 四分位数（Q1）
 * 上側フェンス（UF）＝ Q3 ＋ 1.5 × IQR
@@ -91,7 +91,7 @@ index=botsv3 sourcetype=WinEventLog:Security EventCode=4688
 
 [cols="1,1", options="header"]
 |===
-|host |count
+|`host` |`count`
 |`ABUNGST-L` |586
 |`FYODOR-L` |637
 |`BGIST-L` |654

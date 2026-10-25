@@ -86,11 +86,11 @@ index=botsv2 sourcetype=stream:smtp *berkbeer.com*
 
 [cols="2,2,2,3,2", options="header"]
 |===
-|_time |sender_email |receiver |subject |attach
-|2017-08-29 10:49 |`aturing@froth.ly` |`mberk@berkbeer.com` |Amber from Froth.ly |
-|2017-08-29 11:03 |`mberk@berkbeer.com` |`aturing@froth.ly` |Re: Amber from Froth.ly |
-|2017-08-29 11:08 |`hbernhard@berkbeer.com` |`aturing@froth.ly` |Heinz Bernhard Contact Information |
-|2017-08-30 15:08 |`aturing@froth.ly` |`hbernhard@berkbeer.com` |RE: Heinz Bernhard Contact Information |`Saccharomyces_cerevisiae_patent.docx`
+|`_time` |`sender_email` |`receiver` |`subject` |`attach`
+|2017-08-29 10:49 |`aturing@froth.ly` |`mberk@berkbeer.com` |`Amber from Froth.ly` |
+|2017-08-29 11:03 |`mberk@berkbeer.com` |`aturing@froth.ly` |`Re: Amber from Froth.ly` |
+|2017-08-29 11:08 |`hbernhard@berkbeer.com` |`aturing@froth.ly` |`Heinz Bernhard Contact Information` |
+|2017-08-30 15:08 |`aturing@froth.ly` |`hbernhard@berkbeer.com` |`RE: Heinz Bernhard Contact Information` |`Saccharomyces_cerevisiae_patent.docx`
 |===
 
 WARNING: メールのイベントは長いため，`sender_email` などのフィールドが自動抽出されないことがある．

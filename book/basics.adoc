@@ -16,20 +16,20 @@
 ----
 
 `index=botsv2` や `index=botsv3` に変えて同じことをすると，それぞれのデータセットの構成が分かる．
-主な sourcetype と用途を <<tab_sourcetypes>> に示す．
+主な `sourcetype` と用途を <<tab_sourcetypes>> に示す．
 
 [[tab_sourcetypes]]
-.主な sourcetype と用途
+.主な `sourcetype` と用途
 [cols="2,3,1", options="header"]
 |===
-|sourcetype |内容 |主に使う版
+|`sourcetype` |内容 |主に使う版
 
 |`stream:http` / `stream:dns` / `stream:smtp` / `stream:smb` / `stream:ftp` / `stream:tcp`
 |Splunk Stream が取得したネットワーク通信．HTTP のヘッダや本文，DNS の問い合わせ，メール本文まで入っている
 |v1〜v3
 
 |`XmlWinEventLog:Microsoft-Windows-Sysmon/Operational`
-|Sysmon．EventCode 1 = プロセス生成，2 = ファイル作成時刻の変更，3 = ネットワーク接続，11 = ファイル作成
+|Sysmon．`EventCode` 1 = プロセス生成，2 = ファイル作成時刻の変更，3 = ネットワーク接続，11 = ファイル作成
 |v1〜v3
 
 |`WinEventLog:Security`
@@ -80,7 +80,7 @@ TIP: 全件検索（`index=botsv1` だけで条件のない検索）は，古い
 === キーワード検索から始め，フィールドで絞る
 
 手がかりが文字列（ドメイン名，ファイル名，IP アドレスなど）であれば，まずキーワードで検索し，
-どの sourcetype にヒットするかを見るのが早い．
+どの `sourcetype` にヒットするかを見るのが早い．
 
 [source,spl]
 ----
@@ -88,7 +88,7 @@ index=botsv1 3791.exe
 | stats count by sourcetype
 ----
 
-ヒットした sourcetype が分かったら，そのデータのフィールドを使って絞り込み・集計する．
+ヒットした `sourcetype` が分かったら，そのデータのフィールドを使って絞り込み・集計する．
 検索画面左側の「フィールド」一覧で，各フィールドの値の分布を確認できる．
 
 === よく使うコマンド
@@ -178,7 +178,7 @@ Splunk の検索結果は **新しい順** に返る．
 
 === Sysmon と Windows イベントログの読み方
 
-Sysmon のプロセス生成（EventCode 1）には，次のフィールドがある．
+Sysmon のプロセス生成（`EventCode` 1）には，次のフィールドがある．
 攻撃の流れは，親子関係（`ParentProcessId` → `ProcessId`）をたどると見えてくる．
 
 [cols="1,3", options="header"]
@@ -198,10 +198,10 @@ Sysmon のプロセス生成（EventCode 1）には，次のフィールドが�
 |実行ファイルのハッシュ（`MD5=...,SHA256=...` の形式）
 
 |`TargetFilename`
-|EventCode 2・11 の対象ファイル
+|`EventCode` 2・11 の対象ファイル
 
 |`DestinationIp` / `DestinationPort` / `DestinationHostname`
-|EventCode 3 の接続先
+|`EventCode` 3 の接続先
 |===
 
 TIP: フィールドが自動抽出されない場合は，`rex` で `_raw` から取り出せる．

@@ -1,5 +1,5 @@
 [[chap_botsv2_brewertalk]]
-== BOTSv2 (2): brewertalk.com への攻撃
+== BOTSv2 (2): `brewertalk.com` への攻撃
 
 === シナリオ
 
@@ -29,7 +29,7 @@ Frothly が運営するビール愛好家向けフォーラム `www.brewertalk.c
 |===
 
 [[q1201]]
-=== 1201: brewertalk.com の公開 IP アドレス
+=== 1201: `brewertalk.com` の公開 IP アドレス
 
 [quote]
 ____
@@ -198,7 +198,7 @@ index=botsv2 sourcetype=stream:http src_ip=45.77.65.211 uri_path=/member.php "XP
 
 [cols="1,4,2", options="header"]
 |===
-|_time |query |leak
+|`_time` |`query` |`leak`
 |15:24:49 |`select table_name from information_schema.columns ...` |`mybb_users`
 |15:24:50 |`SELECT COUNT(*) FROM mybb_users` |`6`
 |15:24:51 |`SELECT username FROM mybb_users ORDER BY UID LIMIT 0,1` |`frank`
@@ -367,7 +367,7 @@ index=botsv2 sourcetype=stream:http form_data=*my_post_key* form_data="*usergrou
 
 [cols="2,1,1,2", options="header"]
 |===
-|_time |src_ip |user |key
+|`_time` |`src_ip` |`user` |`key`
 |2017-08-16 15:18:39 |`10.0.2.109`（Kevin） |`kIagerfield` |`1bc3eab741900ab25c98eee86bf20feb`
 |2017-08-16 15:19:18 |`71.39.18.125`（攻撃者） |`kIagerfield` |`1bc3eab741900ab25c98eee86bf20feb`
 |===

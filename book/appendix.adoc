@@ -158,7 +158,7 @@
 |`258`
 
 |<<q411,411>>
-|121214.tmp の最初の起動の ParentProcessId
+|`121214.tmp` の最初の起動の `ParentProcessId`
 |15
 |`+3968+`
 |
@@ -225,7 +225,7 @@
 |
 
 |<<q1201,1201>>
-|brewertalk.com の公開 IP アドレス
+|`brewertalk.com` の公開 IP アドレス
 |10
 |`+52.42.208.228+`
 |
@@ -351,19 +351,19 @@
 |
 
 |<<q1404,1404>>
-|160.153.91.7 に対応するドメイン
+|`160.153.91.7` に対応するドメイン
 |10
 |`+hildegardsfarm.com+`
 |
 
 |<<q1405,1405>>
-|winsys32.dll によってダウンロードされた不審なファイル
+|`winsys32.dll` によってダウンロードされた不審なファイル
 |15
 |`+나는_데이비드를_사랑한다.hwp+`
 |
 
 |<<q1501,1501>>
-|dberry398@mail.com の最初のセッション識別子
+|`dberry398@mail.com` の最初のセッション識別子
 |10
 |`+lwh9Ql7oUbnJUqxR+`
 |
@@ -442,7 +442,7 @@
 |
 
 |<<q2104,2104>>
-|S3 バケットを公開した API の eventID
+|S3 バケットを公開した API の `eventID`
 |10
 |`+ab45689d-69cd-41e7-8705-5350402cf7ac+`
 |
@@ -574,7 +574,7 @@
 |
 
 |<<q2310,2310>>
-|Linux サーバーの /tmp に送り込まれた 2 つのファイル
+|Linux サーバーの `/tmp` に送り込まれた 2 つのファイル
 |15
 |`+colonel,definitelydontinvestigatethisfile.sh+`
 |順序違い
@@ -598,7 +598,7 @@
 |`Xenial`
 
 |<<q2401,2401>>
-|EventCode 4688 の件数の IQR の上側フェンス
+|`EventCode` 4688 の件数の IQR の上側フェンス
 |15
 |`+1368+`
 |`1737`
@@ -677,7 +677,7 @@
 
 |2302
 |全チームが未解決
-|マクロ付き Excel（W97M.Empstage）を作成したプロセスが `HxTsr.exe`（Sysmon EventCode 11）．問題文とのつながりは弱い
+|マクロ付き Excel（W97M.Empstage）を作成したプロセスが `HxTsr.exe`（Sysmon `EventCode` 11）．問題文とのつながりは弱い
 
 |2303
 |HTTP の `davidverve.com` を答えかけたチームがあった
@@ -701,8 +701,3 @@
 * Apache Struts, https://cwiki.apache.org/confluence/display/WW/S2-048[S2-048]（CVE-2017-9791）
 * NVD, https://nvd.nist.gov/vuln/detail/CVE-2017-16995[CVE-2017-16995]
 * andickinson, https://andickinson.github.io/blog/splunk-boss-of-the-soc-v1/[TryHackMe: Splunk - Boss of the SOC v1]（問題 202 の確認に使用）
-
-=== 本書について
-
-本書は Asciidoctor で書かれている．左サイドバーの目次などの体裁は https://tomomano.gitlab.io/intro-aws/[AWSによるクラウド入門] を参考にしたが，本文・コードはすべて独自に作成したものである．
-BOTS のデータセットとシナリオは Splunk 社によるものである．

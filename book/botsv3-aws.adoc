@@ -142,7 +142,7 @@ Intel のプロセッサ番号は「E5-2676」の部分である（`v3` は世�
 ====
 
 [[q2104]]
-=== 2104: S3 バケットを公開した API の eventID
+=== 2104: S3 バケットを公開した API の `eventID`
 
 [quote]
 ____
@@ -164,7 +164,7 @@ index=botsv3 sourcetype=aws:cloudtrail eventName=PutBucketAcl
 
 [cols="1,3,1,1,3", options="header"]
 |===
-|_time |eventID |userName |bucketName |grantee
+|`_time` |`eventID` |`userName` |`bucketName` |`grantee`
 |13:01:46 |`ab45689d-69cd-41e7-8705-5350402cf7ac` |`bstoll` |`frothlywebcode` |`LogDelivery` と `global/AllUsers`
 |13:57:54 |`9a33d8df-1e16-4d58-b36d-8e80ce68f8a3` |`bstoll` |`frothlywebcode` |`LogDelivery` のみ
 |===
@@ -311,7 +311,7 @@ index=botsv3 host=BSTOLL-L sourcetype=PerfmonMk:Process instance!=Idle instance!
 
 [cols="2,2,1", options="header"]
 |===
-|instance |first |count
+|`instance` |`first` |`count`
 |`MicrosoftEdgeCP#2` |2018-08-20 09:36:26 |1
 |`chrome#5` |2018-08-20 13:37:50 |3
 |`chrome#4` |2018-08-20 13:38:30 |129
@@ -393,7 +393,7 @@ index=botsv3 sourcetype=symantec:ep:security:file JSCoinminer
 
 [cols="1,1,1,1", options="header"]
 |===
-|first |last |earliest |latest
+|`first` |`last` |`earliest` |`latest`
 |30356 |30358 |30356 |30358
 |===
 
@@ -442,14 +442,14 @@ index=botsv3 sourcetype=symantec:ep:security:file "CIDS Signature ID: 30358"
 | stats count by sig
 ----
 
-`Web Attack: JSCoinminer Download 8` である．問題文の指示どおり `Web Attack: ` を除いて答える．
+`Web Attack: JSCoinminer Download 8` である．問題文の指示どおり `++Web Attack: ++` を除いて答える．
 
 .答え
 [%collapsible.answer]
 ====
 `JSCoinminer Download 8`
 
-（`Web Attack: ` を付けても正解として受け付けられる）
+（`++Web Attack: ++` を付けても正解として受け付けられる）
 ====
 
 [[q2114]]
@@ -481,7 +481,7 @@ index=botsv3 sourcetype=symantec:ep:security:file JSCoinminer
 ----
 
 `BTUN-L` では Symantec がマイナーを阻止しており，マイニングは起きていない．
-`Intrusion URL` から，コインマイナーは brewertalk.com のページに埋め込まれていたことも分かる．
+`Intrusion URL` から，コインマイナーは `brewertalk.com` のページに埋め込まれていたことも分かる．
 
 .答え
 [%collapsible.answer]
@@ -511,7 +511,7 @@ index=botsv3 sourcetype=aws:cloudtrail eventSource=iam.amazonaws.com errorCode=*
 
 [cols="2,1,1,3", options="header"]
 |===
-|accessKeyId |userName |errors |api
+|`accessKeyId` |`userName` |`errors` |`api`
 |`AKIAJOGCDXJ5NW5PXUPA` |`web_admin` |5 |`CreateAccessKey CreateUser DeleteAccessKey GetUser ListAccessKeys`
 |`AKIAIGKL572SFDPOKLHA` |`splunk_access` |1 |`GetAccountPasswordPolicy`
 |===

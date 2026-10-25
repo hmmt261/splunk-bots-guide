@@ -54,7 +54,7 @@ ____
 配点：5 点
 
 .方針
-端末の Sysmon のネットワーク接続（EventCode 3）では，接続元のアドレスが `SourceIp` に記録される．
+端末の Sysmon のネットワーク接続（`EventCode` 3）では，接続元のアドレスが `SourceIp` に記録される．
 最も多い送信元アドレスが端末自身のアドレスである．
 
 [source,spl]
@@ -97,10 +97,10 @@ index=botsv1 sourcetype=suricata cerber
 
 [cols="1,3,1", options="header"]
 |===
-|alert.signature_id |alert.signature |count
-|2816763 |ETPRO TROJAN Ransomware/Cerber Checkin 2 |1
-|2816764 |ETPRO TROJAN Ransomware/Cerber Checkin Error ICMP Response |2
-|2820156 |ETPRO TROJAN Ransomware/Cerber Onion Domain Lookup |2
+|`alert.signature_id` |`alert.signature` |`count`
+|2816763 |`ETPRO TROJAN Ransomware/Cerber Checkin 2` |1
+|2816764 |`ETPRO TROJAN Ransomware/Cerber Checkin Error ICMP Response` |2
+|2820156 |`ETPRO TROJAN Ransomware/Cerber Onion Domain Lookup` |2
 |===
 
 WARNING: `*erber*` のようなワイルドカードで検索すると `kerberos` にもヒットする．
@@ -169,7 +169,7 @@ index=botsv1 sourcetype=stream:dns src_ip=192.168.250.100 "query_type{}"=A earli
 
 [cols="2,1", options="header"]
 |===
-|q |first
+|`q` |`first`
 |`wpad.waynecorpinc.local` / `wpad` |16:34:21
 |`crl.microsoft.com` |16:34:26
 |`dns.msftncsi.com` |16:34:39
@@ -352,7 +352,7 @@ ____
 
 .方針
 ファイルサーバー側の Windows セキュリティログには，共有フォルダー内のファイルへのアクセスが
-EventCode 5145（詳細なファイル共有）として記録されている．
+`EventCode` 5145（詳細なファイル共有）として記録されている．
 対象ファイル名は `Relative_Target_Name` に入る．
 
 [source,spl]
@@ -380,7 +380,7 @@ SMB の記録は操作の種類や取得範囲によって欠けがあるため�
 ====
 
 [[q411]]
-=== 411: 121214.tmp の最初の起動の ParentProcessId
+=== 411: `121214.tmp` の最初の起動の `ParentProcessId`
 
 [quote]
 ____
@@ -401,7 +401,7 @@ index=botsv1 host=we8105desk sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/
 
 [cols="1,1,2,1,2", options="header"]
 |===
-|_time |ProcessId |Image |ParentProcessId |CommandLine
+|`_time` |`ProcessId` |`Image` |`ParentProcessId` |`CommandLine`
 |16:48:21 |1476 |`cmd.exe` |**3968**（`wscript.exe`） |`cmd.exe /C START "" "...\121214.tmp"`
 |16:48:21 |2948 |`121214.tmp` |1476（`cmd.exe`） |`"...\121214.tmp"`
 |16:48:29 |3828 |`121214.tmp` |2948 |（自分自身を再起動）
@@ -411,7 +411,7 @@ VBScript（`wscript.exe`，PID 3968）は `cmd.exe /C START` で `121214.tmp` �
 この「最初の起動」のイベント（`cmd.exe` のプロセス生成）の `ParentProcessId` は 3968 である．
 
 WARNING: `121214.tmp` 自身のイベントの親（`cmd.exe` の 1476）を答えると不正解になる．
-問題文は「VB スクリプトが 121214.tmp を起動した」操作の親を問うている．
+問題文は「VB スクリプトが `121214.tmp` を起動した」操作の親を問うている．
 
 .答え
 [%collapsible.answer]
@@ -431,7 +431,7 @@ ____
 
 .方針
 Cerber はファイルを暗号化するとき，ファイルの作成日時を書き換える．
-これは Sysmon の EventCode 2（File creation time changed）として記録される．
+これは Sysmon の `EventCode` 2（File creation time changed）として記録される．
 Bob のプロファイル（`C:\Users\bob.smith.WAYNECORPINC\`）の下の `.txt` に絞って種類数を数える．
 
 [source,spl]

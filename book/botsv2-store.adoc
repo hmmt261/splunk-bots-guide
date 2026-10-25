@@ -12,7 +12,7 @@ HTTP の通信記録（クリックストリーム）を分析し，不正利用
 .Magento のリクエストと用途
 [cols="2,3", options="header"]
 |===
-|uri_path |用途
+|`uri_path` |用途
 
 |`/magento2/customer/account/createpost/`
 |アカウント作成
@@ -38,7 +38,7 @@ TIP: Magento は Cookie の `form_key` で一連の操作を結び付けてい�
 この章では `| rex field=cookie "form_key=(?<fk>[^;]+)"` で取り出した `fk` を「セッション」として扱う．
 
 [[q1501]]
-=== 1501: dberry398@mail.com の最初のセッション識別子
+=== 1501: `dberry398@mail.com` の最初のセッション識別子
 
 [quote]
 ____
@@ -61,7 +61,7 @@ index=botsv2 sourcetype=stream:http dberry398
 
 [cols="2,3,2,3", options="header"]
 |===
-|_time |uri_path |form_key |phpsessid
+|`_time` |`uri_path` |`form_key` |`phpsessid`
 |07:03:55.178 |`/magento2/customer/account/createpost/` |`lwh9Ql7oUbnJUqxR` |`r51ctj1efg8bo7lacaq399nci5`
 |07:03:55.364 | |`lwh9Ql7oUbnJUqxR` |`o6fc5a2rdoufmb8en8bqvfbav2`
 |07:06:36.890 | |`lwh9Ql7oUbnJUqxR` |`mlhg4l49hi8hn93b2abtr75j42`
@@ -107,7 +107,7 @@ index=botsv2 sourcetype=stream:http site=store.froth.ly (uri_path="*editPost*" O
 
 [cols="2,1,2,1", options="header"]
 |===
-|fk |edited |user |total
+|`fk` |`edited` |`user` |`total`
 |`ZDd2VGcWWKcKM95o` |1 |`bkildcare@yandex.com` |1552
 |===
 
@@ -187,7 +187,7 @@ index=botsv2 sourcetype=stream:http site=store.froth.ly uri_path="*loginPost*"
 
 [cols="1,1,4", options="header"]
 |===
-|domain |users |sample
+|`domain` |`users` |`sample`
 |`elude.in` |52 |`A.Worthy AA.Worthy AB.Worthy AC.Worthy AD.Worthy AE.Worthy`
 |`gmail.com` |29 |`SamIAm66 TheAbaft TheBest ...`
 |===

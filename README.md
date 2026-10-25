@@ -1,7 +1,7 @@
 # Splunk BOTS v1〜v3 解き方ガイド
 
-Splunk 社のセキュリティ演習データセット **Boss of the SOC (BOTS)** v1・v2・v3 を使った演習（全 98 問）を、
-Splunk の検索でどう解くかを解説するガイドです。
+Splunk 社のセキュリティ演習データセット **Boss of the SOC (BOTS)** v1・v2・v3 を使った演習（全 98 問）の
+解き方を解説するガイドです。
 
 各問題について「方針 → SPL → 解説 → つまずきやすい点 → 答え（折りたたみ）」の順に説明しています。
 掲載している SPL は、演習環境（Splunk Enterprise 9.2、受講者用の検索専用ロール）で実行して結果を確認済みです。
@@ -22,7 +22,7 @@ generate.sh           dist/index.html を生成する
 .github/workflows/    GitHub Pages へのデプロイ
 ```
 
-体裁は [AWSによるクラウド入門](https://tomomano.gitlab.io/intro-aws/) と同じく、
+体裁は [AWSによるクラウド入門](https://tomomano.gitlab.io/intro-aws/) を参考にしています。
 Asciidoctor の HTML 出力（左サイドバーの目次・節番号・rouge によるコードの色付け）を使っています。
 
 ## ビルド

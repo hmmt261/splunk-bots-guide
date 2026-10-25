@@ -139,8 +139,8 @@ index=botsv2 host=MACLORY-AIR13 sourcetype=osquery_results "Frothly_marketing_ca
 
 [cols="1,1,1,1", options="header"]
 |===
-|_time |columns.action |columns.time |columns.ctime
-|21:50:43 |CREATED など |1503093023 |1503093022
+|`_time` |`columns.action` |`columns.time` |`columns.ctime`
+|21:50:43 |`CREATED` など |1503093023 |1503093022
 |===
 
 `_time`（21:50:43）は osquery がイベントを出力した時刻で，実際のファイル操作より遅れている．
@@ -189,9 +189,9 @@ index=botsv2 host=MACLORY-AIR13 sourcetype=osquery_results name=*file_events* co
 
 [cols="1,1", options="header"]
 |===
-|kind |first（_time）
-|patcher |21:48:31
-|crypt |21:50:43
+|`kind` |`first`（`_time`）
+|`patcher` |21:48:31
+|`crypt` |21:50:43
 |===
 
 差は 2 分 12 秒＝132 秒である．
@@ -218,7 +218,7 @@ ____
 
 .方針
 `kutekitten`（`10.0.4.2`）の DNS 問い合わせから，ダイナミック DNS サービスのドメインを探す．
-マルウェアの C&C には，IP アドレスを自由に変えられるダイナミック DNS（duckdns.org，hopto.org など）がよく使われる．
+マルウェアの C&C には，IP アドレスを自由に変えられるダイナミック DNS（`duckdns.org`，`hopto.org` など）がよく使われる．
 
 [source,spl]
 ----
@@ -229,7 +229,7 @@ index=botsv2 sourcetype=stream:dns src_ip=10.0.4.2 ("*duckdns.org" OR "*hopto.or
 
 [cols="2,1,2,2", options="header"]
 |===
-|query{} |count |first |last
+|`query{}` |`count` |`first` |`last`
 |`eidk.duckdns.org` |6 |2017-08-03 18:20:26 |2017-08-03 18:22:56
 |`eidk.hopto.org` |4 |2017-08-03 18:20:16 |2017-08-03 18:21:36
 |`hh4de2.hopto.org` |2 |2017-08-03 18:22:16 |2017-08-03 18:22:16
@@ -351,7 +351,7 @@ index=botsv2 host=kutekitten sourcetype=osquery_results name=*ProcessesInUserSpa
 
 [cols="1,2,2", options="header"]
 |===
-|columns.name |columns.path |cmd
+|`columns.name` |`columns.path` |`cmd`
 |`perl5.18` |`/usr/bin/perl5.18` |`java XPC_FLAGS=0x0`
 |===
 

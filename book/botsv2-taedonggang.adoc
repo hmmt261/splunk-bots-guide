@@ -37,8 +37,8 @@ index=botsv2 sourcetype=stream:smtp *.zip
 
 [cols="2,1,1,3", options="header"]
 |===
-|sender_email |subject |attach |rcpt
-|`jsmith@urinalysis.com` |Invoice |`invoice.zip` |`abungstein@`，`btun@`，`fyodor@`，`klagerfield@froth.ly`
+|`sender_email` |`subject` |`attach` |`rcpt`
+|`jsmith@urinalysis.com` |`Invoice` |`invoice.zip` |`abungstein@`，`btun@`，`fyodor@`，`klagerfield@froth.ly`
 |===
 
 .答え
@@ -110,7 +110,7 @@ index=botsv2 sourcetype=stream:tcp ssl_issuer="C = US"
 | sort -count
 ----
 
-すべて `45.77.65.211` の 443 番で，これは brewertalk.com を攻撃した送信元（<<chap_botsv2_brewertalk>>）と同じアドレスである．
+すべて `45.77.65.211` の 443 番で，これは `brewertalk.com` を攻撃した送信元（<<chap_botsv2_brewertalk>>）と同じアドレスである．
 この宛先との SSL 通信の大半（14,189 件）が `C = US` を使っている．
 
 [source,spl]
@@ -129,7 +129,7 @@ WARNING: 空白を含めてそのまま写すこと．`C=US` や `US` では正�
 ====
 
 [[q1404]]
-=== 1404: 160.153.91.7 に対応するドメイン
+=== 1404: `160.153.91.7` に対応するドメイン
 
 [quote]
 ____
@@ -159,7 +159,7 @@ TIP: 1405 の FTP 通信でも，ログインのユーザー名（`USER` コマ�
 ====
 
 [[q1405]]
-=== 1405: winsys32.dll によってダウンロードされた不審なファイル
+=== 1405: `winsys32.dll` によってダウンロードされた不審なファイル
 
 [quote]
 ____

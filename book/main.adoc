@@ -21,18 +21,31 @@ v1.0, 2026-10-25
 :experimental:
 
 include::introduction.adoc[]
+
 include::basics.adoc[]
+
 include::botsv1-web.adoc[]
+
 include::botsv1-cerber.adoc[]
+
 include::botsv2-amber.adoc[]
+
 include::botsv2-brewertalk.adoc[]
+
 include::botsv2-mallory.adoc[]
+
 include::botsv2-taedonggang.adoc[]
+
 include::botsv2-store.adoc[]
+
 include::botsv3-aws.adoc[]
+
 include::botsv3-endpoint.adoc[]
+
 include::botsv3-extra.adoc[]
+
 include::closing.adoc[]
+
 include::appendix.adoc[]
 
 // Additional styles
