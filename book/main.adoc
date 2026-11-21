@@ -1,4 +1,5 @@
 = Splunk BOTS v1 ~ v3 解き方ガイド
+:docinfo: private-head
 :toc: left
 :toclevels: 2
 :toc-title: 目次
@@ -45,15 +46,3 @@ include::botsv3-extra.adoc[]
 include::closing.adoc[]
 
 include::appendix.adoc[]
-
-// Additional styles
-++++
-<style>
-  details > summary.title {
-    font-weight: bold;
-  }
-  .answer code {
-    font-size: 1.05em;
-  }
-</style>
-++++

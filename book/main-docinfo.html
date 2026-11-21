@@ -1,0 +1,71 @@
+<!-- Notebook skin adapted from darshandsoni/asciidoctor-skins (css/notebook.css).
+The MIT License (MIT)
+
+Copyright (c) 2016 Darshan Soni
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Architects+Daughter&amp;family=Cabin+Sketch&amp;display=swap">
+<style>
+  :root {
+    --notebook-body: "Architects Daughter", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    --notebook-heading: "Cabin Sketch", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    --notebook-ink: #1a237e;
+  }
+
+  body {
+    font-family: var(--notebook-body);
+    background-color: #fff;
+    background-image: linear-gradient(90deg, transparent 79px, #abced4 79px, #abced4 81px, transparent 81px),
+                      linear-gradient(#eee .15em, transparent .15em);
+    background-size: 100% 1.2em;
+  }
+
+  #header h1, h2, h3, h4, h5, h6, #toctitle {
+    font-family: var(--notebook-heading);
+    color: var(--notebook-ink);
+  }
+
+  #header h1 { color: #000; }
+  #toc.toc2 { background-color: #cacaca; }
+  #toc.toc2 a { font-family: var(--notebook-body); color: #0d47a1; }
+  #content .title {
+    font-family: var(--notebook-body);
+    color: #000;
+    font-style: normal;
+  }
+
+  .quoteblock blockquote, .quoteblock blockquote p { color: var(--notebook-ink); }
+  table.tableblock th, table.tableblock td { background-color: #fff; }
+  :not(pre) > code { background-color: #000; color: #ffd600; }
+  mark { background-color: #ffd600; }
+
+  #content .listingblock pre, #content .literalblock pre {
+    background-color: #f9a825;
+    color: var(--notebook-ink);
+  }
+
+  .listingblock pre > code, .literalblock pre > code {
+    background-color: transparent;
+    color: inherit;
+  }
+
+  details > summary.title { font-weight: bold; }
+  .answer code { font-size: 1.05em; }
+</style>
