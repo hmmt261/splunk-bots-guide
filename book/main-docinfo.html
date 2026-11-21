@@ -54,6 +54,10 @@ SOFTWARE.
 
   .quoteblock blockquote, .quoteblock blockquote p { color: var(--notebook-ink); }
   table.tableblock th, table.tableblock td { background-color: #fff; }
+  :not(pre) > code {
+    font-family: var(--notebook-body);
+    font-variant-ligatures: none;
+  }
   #content :not(pre) > code {
     color: #30465c;
     background: #edf1f4;
