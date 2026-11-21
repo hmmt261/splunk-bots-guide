@@ -54,15 +54,29 @@ SOFTWARE.
 
   .quoteblock blockquote, .quoteblock blockquote p { color: var(--notebook-ink); }
   table.tableblock th, table.tableblock td { background-color: #fff; }
-  #content :not(pre) > code { background-color: #000; color: #ffd600; }
+  #content :not(pre) > code {
+    color: #30465c;
+    background: #edf1f4;
+    border-radius: 3px;
+    padding: .08em .28em;
+    word-spacing: normal;
+  }
   mark { background-color: #ffd600; }
 
   #content .listingblock pre, #content .literalblock pre {
-    background-color: #f9a825;
-    color: var(--notebook-ink);
+    color: #26394a;
+    background: #f6f8fa;
+    border: 1px solid #dce3e9;
+    border-left: 3px solid #95aabe;
+    border-radius: 3px;
+    padding: .75em 1em;
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    font-size: clamp(.875rem, .83rem + .12vw, .9375rem);
+    line-height: 1.6;
   }
 
   .listingblock pre > code, .literalblock pre > code {
+    font-family: inherit;
     background-color: transparent;
     color: inherit;
   }
